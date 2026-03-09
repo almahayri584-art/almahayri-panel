@@ -1347,467 +1347,7 @@ body {
   </div>
 </div>
 
-<script>
-let currentFrame = 'none';
-let currentFg = '#1a1208';
-let currentBg = '#ffffff';
-let qrDataURL = '';
-let currentSize = 280;
-let currentText = '';
 
-// Color pickers
-document.getElementById('fg').addEventListener('input', function() {
-  currentFg = this.value;
-  document.getElementById('fg-val').textContent = this.value;
-});
-document.getElementById('bg').addEventListener('input', function() {
-  currentBg = this.value;
-  document.getElementById('bg-val').textContent = this.value;
-});
-
-// Palette buttons
-document.querySelectorAll('.palette-btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    const fg = this.dataset.fg;
-    const bg = this.dataset.bg;
-    currentFg = fg; currentBg = bg;
-    document.getElementById('fg').value = fg;
-    document.getElementById('bg').value = bg;
-    document.getElementById('fg-val').textContent = fg;
-    document.getElementById('bg-val').textContent = bg;
-  });
-});
-
-// Sliders
-document.getElementById('qr-size').addEventListener('input', function() {
-  currentSize = parseInt(this.value);
-  document.getElementById('size-val').textContent = this.value + 'px';
-});
-document.getElementById('qr-margin').addEventListener('input', function() {
-  document.getElementById('margin-val').textContent = this.value;
-});
-
-// Frame buttons
-document.querySelectorAll('.frame-btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    currentFrame = this.dataset.frame;
-    document.getElementById('label-input-wrap').style.display = currentFrame === 'label' ? 'block' : 'none';
-  });
-});
-
-function generate() {
-  const text = document.getElementById('qr-url').value.trim();
-  if (!text) { alert('Lütfen bir URL veya metin girin.'); return; }
-  currentText = text;
-
-  const size = parseInt(document.getElementById('qr-size').value);
-  const margin = parseInt(document.getElementById('qr-margin').value);
-
-  // Generate QR into hidden div
-  const hidden = document.getElementById('qr-hidden');
-  hidden.innerHTML = '';
-
-  new QRCode(hidden, {
-    text: text,
-    width: size,
-    height: size,
-    colorDark: currentFg,
-    colorLight: currentBg,
-    correctLevel: QRCode.CorrectLevel.H,
-  });
-
-  setTimeout(() => {
-    const srcCanvas = hidden.querySelector('canvas');
-    if (!srcCanvas) return;
-
-    // Draw onto output canvas with frame
-    drawWithFrame(srcCanvas, size, margin);
-
-    document.getElementById('empty-state').style.display = 'none';
-    document.getElementById('qr-output').style.display = 'flex';
-    document.getElementById('preview-info').textContent = text.length + ' karakter · ' + size + '×' + size + 'px';
-  }, 200);
-}
-
-function drawWithFrame(srcCanvas, size, margin) {
-  const pad = margin * 10;
-  const outputCanvas = document.getElementById('qr-canvas');
-  const frame = currentFrame;
-  const labelText = document.getElementById('label-text').value || 'Almahayri';
-  const labelHeight = frame === 'label' ? 36 : 0;
-
-  const totalW = size + pad * 2;
-  const totalH = size + pad * 2 + labelHeight;
-
-  outputCanvas.width = totalW;
-  outputCanvas.height = totalH;
-
-  const ctx = outputCanvas.getContext('2d');
-  ctx.clearRect(0, 0, totalW, totalH);
-
-  // Background
-  ctx.fillStyle = currentBg;
-  ctx.fillRect(0, 0, totalW, totalH);
-
-  // Frame drawings
-  if (frame === 'simple') {
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
-  }
-
-  if (frame === 'rounded') {
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 3;
-    roundRect(ctx, 3, 3, totalW - 6, totalH - 6, 14);
-    ctx.stroke();
-  }
-
-  if (frame === 'double') {
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
-    ctx.lineWidth = 1;
-    ctx.strokeRect(7, 7, totalW - 14, totalH - 14);
-  }
-
-  if (frame === 'shadow') {
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.fillRect(6, 6, totalW, totalH);
-    ctx.fillStyle = currentBg;
-    ctx.fillRect(0, 0, totalW - 3, totalH - 3);
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1.5, 1.5, totalW - 4.5, totalH - 4.5);
-  }
-
-  if (frame === 'label') {
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(3, 3, totalW - 6, size + pad * 2 - 6);
-    // Label band
-    ctx.fillStyle = currentFg;
-    ctx.fillRect(0, size + pad * 2, totalW, labelHeight);
-    ctx.fillStyle = currentBg;
-    ctx.font = 'bold 15px Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(labelText, totalW / 2, size + pad * 2 + labelHeight / 2);
-  }
-
-  // Draw QR
-  ctx.drawImage(srcCanvas, pad, pad, size, size);
-
-  qrDataURL = outputCanvas.toDataURL('image/png');
-}
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-// PNG Download
-function downloadPNG() {
-  if (!qrDataURL) return;
-  const a = document.createElement('a');
-  a.download = 'almahayri-qr.png';
-  a.href = qrDataURL;
-  a.click();
-}
-
-// SVG Download
-function downloadSVG() {
-  const canvas = document.getElementById('qr-canvas');
-  const w = canvas.width, h = canvas.height;
-  const dataUrl = canvas.toDataURL('image/png');
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-  <title>Almahayri QR Kod</title>
-  <image href="${dataUrl}" x="0" y="0" width="${w}" height="${h}"/>
-</svg>`;
-  const blob = new Blob([svg], {type: 'image/svg+xml'});
-  const a = document.createElement('a');
-  a.download = 'almahayri-qr.svg';
-  a.href = URL.createObjectURL(blob);
-  a.click();
-}
-
-// PDF Download
-function downloadPDF() {
-  if (!qrDataURL) return;
-  const { jsPDF } = window.jspdf;
-  const canvas = document.getElementById('qr-canvas');
-  const pxW = canvas.width, pxH = canvas.height;
-
-  // Convert px to mm (96dpi → mm)
-  const mmW = pxW * 0.264583;
-  const mmH = pxH * 0.264583;
-
-  const pdf = new jsPDF({
-    orientation: mmW > mmH ? 'landscape' : 'portrait',
-    unit: 'mm',
-    format: [mmW + 20, mmH + 20]
-  });
-
-  pdf.setFillColor(255, 255, 255);
-  pdf.rect(0, 0, mmW + 20, mmH + 20, 'F');
-  pdf.addImage(qrDataURL, 'PNG', 10, 10, mmW, mmH);
-
-  pdf.setFontSize(7);
-  pdf.setTextColor(180, 170, 150);
-  pdf.text('almahayri584-art.github.io/Almahayri', 10, mmH + 16);
-
-  pdf.save('almahayri-qr.pdf');
-}
-
-// Auto-generate on load
-window.addEventListener('load', () => {
-  setTimeout(generate, 600);
-});
-</script>
-
-      <script>
-        
-let currentFrame = 'none';
-let currentFg = '#1a1208';
-let currentBg = '#ffffff';
-let qrDataURL = '';
-let currentSize = 280;
-let currentText = '';
-
-// Color pickers
-document.getElementById('fg').addEventListener('input', function() {
-  currentFg = this.value;
-  document.getElementById('fg-val').textContent = this.value;
-});
-document.getElementById('bg').addEventListener('input', function() {
-  currentBg = this.value;
-  document.getElementById('bg-val').textContent = this.value;
-});
-
-// Palette buttons
-document.querySelectorAll('.palette-btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    const fg = this.dataset.fg;
-    const bg = this.dataset.bg;
-    currentFg = fg; currentBg = bg;
-    document.getElementById('fg').value = fg;
-    document.getElementById('bg').value = bg;
-    document.getElementById('fg-val').textContent = fg;
-    document.getElementById('bg-val').textContent = bg;
-  });
-});
-
-// Sliders
-document.getElementById('qr-size').addEventListener('input', function() {
-  currentSize = parseInt(this.value);
-  document.getElementById('size-val').textContent = this.value + 'px';
-});
-document.getElementById('qr-margin').addEventListener('input', function() {
-  document.getElementById('margin-val').textContent = this.value;
-});
-
-// Frame buttons
-document.querySelectorAll('.frame-btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    currentFrame = this.dataset.frame;
-    document.getElementById('label-input-wrap').style.display = currentFrame === 'label' ? 'block' : 'none';
-  });
-});
-
-function generate() {
-  const text = document.getElementById('qr-url').value.trim();
-  if (!text) { alert('Lütfen bir URL veya metin girin.'); return; }
-  currentText = text;
-
-  const size = parseInt(document.getElementById('qr-size').value);
-  const margin = parseInt(document.getElementById('qr-margin').value);
-
-  // Generate QR into hidden div
-  const hidden = document.getElementById('qr-hidden');
-  hidden.innerHTML = '';
-
-  new QRCode(hidden, {
-    text: text,
-    width: size,
-    height: size,
-    colorDark: currentFg,
-    colorLight: currentBg,
-    correctLevel: QRCode.CorrectLevel.H,
-  });
-
-  setTimeout(() => {
-    const srcCanvas = hidden.querySelector('canvas');
-    if (!srcCanvas) return;
-
-    // Draw onto output canvas with frame
-    drawWithFrame(srcCanvas, size, margin);
-
-    document.getElementById('empty-state').style.display = 'none';
-    document.getElementById('qr-output').style.display = 'flex';
-    document.getElementById('preview-info').textContent = text.length + ' karakter · ' + size + '×' + size + 'px';
-  }, 200);
-}
-
-function drawWithFrame(srcCanvas, size, margin) {
-  const pad = margin * 10;
-  const outputCanvas = document.getElementById('qr-canvas');
-  const frame = currentFrame;
-  const labelText = document.getElementById('label-text').value || 'Almahayri';
-  const labelHeight = frame === 'label' ? 36 : 0;
-
-  const totalW = size + pad * 2;
-  const totalH = size + pad * 2 + labelHeight;
-
-  outputCanvas.width = totalW;
-  outputCanvas.height = totalH;
-
-  const ctx = outputCanvas.getContext('2d');
-  ctx.clearRect(0, 0, totalW, totalH);
-
-  // Background
-  ctx.fillStyle = currentBg;
-  ctx.fillRect(0, 0, totalW, totalH);
-
-  // Frame drawings
-  if (frame === 'simple') {
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
-  }
-
-  if (frame === 'rounded') {
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 3;
-    roundRect(ctx, 3, 3, totalW - 6, totalH - 6, 14);
-    ctx.stroke();
-  }
-
-  if (frame === 'double') {
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
-    ctx.lineWidth = 1;
-    ctx.strokeRect(7, 7, totalW - 14, totalH - 14);
-  }
-
-  if (frame === 'shadow') {
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.fillRect(6, 6, totalW, totalH);
-    ctx.fillStyle = currentBg;
-    ctx.fillRect(0, 0, totalW - 3, totalH - 3);
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1.5, 1.5, totalW - 4.5, totalH - 4.5);
-  }
-
-  if (frame === 'label') {
-    ctx.strokeStyle = currentFg;
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(3, 3, totalW - 6, size + pad * 2 - 6);
-    // Label band
-    ctx.fillStyle = currentFg;
-    ctx.fillRect(0, size + pad * 2, totalW, labelHeight);
-    ctx.fillStyle = currentBg;
-    ctx.font = 'bold 15px Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(labelText, totalW / 2, size + pad * 2 + labelHeight / 2);
-  }
-
-  // Draw QR
-  ctx.drawImage(srcCanvas, pad, pad, size, size);
-
-  qrDataURL = outputCanvas.toDataURL('image/png');
-}
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-// PNG Download
-function downloadPNG() {
-  if (!qrDataURL) return;
-  const a = document.createElement('a');
-  a.download = 'almahayri-qr.png';
-  a.href = qrDataURL;
-  a.click();
-}
-
-// SVG Download
-function downloadSVG() {
-  const canvas = document.getElementById('qr-canvas');
-  const w = canvas.width, h = canvas.height;
-  const dataUrl = canvas.toDataURL('image/png');
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-  <title>Almahayri QR Kod</title>
-  <image href="${dataUrl}" x="0" y="0" width="${w}" height="${h}"/>
-</svg>`;
-  const blob = new Blob([svg], {type: 'image/svg+xml'});
-  const a = document.createElement('a');
-  a.download = 'almahayri-qr.svg';
-  a.href = URL.createObjectURL(blob);
-  a.click();
-}
-
-// PDF Download
-function downloadPDF() {
-  if (!qrDataURL) return;
-  const { jsPDF } = window.jspdf;
-  const canvas = document.getElementById('qr-canvas');
-  const pxW = canvas.width, pxH = canvas.height;
-
-  // Convert px to mm (96dpi → mm)
-  const mmW = pxW * 0.264583;
-  const mmH = pxH * 0.264583;
-
-  const pdf = new jsPDF({
-    orientation: mmW > mmH ? 'landscape' : 'portrait',
-    unit: 'mm',
-    format: [mmW + 20, mmH + 20]
-  });
-
-  pdf.setFillColor(255, 255, 255);
-  pdf.rect(0, 0, mmW + 20, mmH + 20, 'F');
-  pdf.addImage(qrDataURL, 'PNG', 10, 10, mmW, mmH);
-
-  pdf.setFontSize(7);
-  pdf.setTextColor(180, 170, 150);
-  pdf.text('almahayri584-art.github.io/Almahayri', 10, mmH + 16);
-
-  pdf.save('almahayri-qr.pdf');
-}
-
-// Auto-generate on load
-window.addEventListener('load', () => {
-  setTimeout(generate, 600);
-});
-
-      </script>
     </div>
 
   </div><!-- /main -->
@@ -1818,6 +1358,14 @@ window.addEventListener('load', () => {
 // PASSWORD
 // ================================
 const PASS = "almahayri2024"; // 🔑 buradan şifreyi değiştir
+
+// QR değişkenleri
+let currentFrame = "none";
+let currentFg = "#1a1208";
+let currentBg = "#ffffff";
+let qrDataURL = "";
+let currentSize = 280;
+let currentText = "";
 
 function checkLogin() {
   const val = document.getElementById('pw-input').value;
@@ -2219,6 +1767,453 @@ function formatBytes(bytes) {
   if(bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
   return (bytes/1048576).toFixed(1) + ' MB';
 }
+
+
+// Color pickers
+document.getElementById('fg').addEventListener('input', function() {
+  currentFg = this.value;
+  document.getElementById('fg-val').textContent = this.value;
+});
+document.getElementById('bg').addEventListener('input', function() {
+  currentBg = this.value;
+  document.getElementById('bg-val').textContent = this.value;
+});
+
+// Palette buttons
+document.querySelectorAll('.palette-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const fg = this.dataset.fg;
+    const bg = this.dataset.bg;
+    currentFg = fg; currentBg = bg;
+    document.getElementById('fg').value = fg;
+    document.getElementById('bg').value = bg;
+    document.getElementById('fg-val').textContent = fg;
+    document.getElementById('bg-val').textContent = bg;
+  });
+});
+
+// Sliders
+document.getElementById('qr-size').addEventListener('input', function() {
+  currentSize = parseInt(this.value);
+  document.getElementById('size-val').textContent = this.value + 'px';
+});
+document.getElementById('qr-margin').addEventListener('input', function() {
+  document.getElementById('margin-val').textContent = this.value;
+});
+
+// Frame buttons
+document.querySelectorAll('.frame-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentFrame = this.dataset.frame;
+    document.getElementById('label-input-wrap').style.display = currentFrame === 'label' ? 'block' : 'none';
+  });
+});
+
+function generate() {
+  const text = document.getElementById('qr-url').value.trim();
+  if (!text) { alert('Lütfen bir URL veya metin girin.'); return; }
+  currentText = text;
+
+  const size = parseInt(document.getElementById('qr-size').value);
+  const margin = parseInt(document.getElementById('qr-margin').value);
+
+  // Generate QR into hidden div
+  const hidden = document.getElementById('qr-hidden');
+  hidden.innerHTML = '';
+
+  new QRCode(hidden, {
+    text: text,
+    width: size,
+    height: size,
+    colorDark: currentFg,
+    colorLight: currentBg,
+    correctLevel: QRCode.CorrectLevel.H,
+  });
+
+  setTimeout(() => {
+    const srcCanvas = hidden.querySelector('canvas');
+    if (!srcCanvas) return;
+
+    // Draw onto output canvas with frame
+    drawWithFrame(srcCanvas, size, margin);
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('qr-output').style.display = 'flex';
+    document.getElementById('preview-info').textContent = text.length + ' karakter · ' + size + '×' + size + 'px';
+  }, 200);
+}
+
+function drawWithFrame(srcCanvas, size, margin) {
+  const pad = margin * 10;
+  const outputCanvas = document.getElementById('qr-canvas');
+  const frame = currentFrame;
+  const labelText = document.getElementById('label-text').value || 'Almahayri';
+  const labelHeight = frame === 'label' ? 36 : 0;
+
+  const totalW = size + pad * 2;
+  const totalH = size + pad * 2 + labelHeight;
+
+  outputCanvas.width = totalW;
+  outputCanvas.height = totalH;
+
+  const ctx = outputCanvas.getContext('2d');
+  ctx.clearRect(0, 0, totalW, totalH);
+
+  // Background
+  ctx.fillStyle = currentBg;
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Frame drawings
+  if (frame === 'simple') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
+  }
+
+  if (frame === 'rounded') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 3;
+    roundRect(ctx, 3, 3, totalW - 6, totalH - 6, 14);
+    ctx.stroke();
+  }
+
+  if (frame === 'double') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(7, 7, totalW - 14, totalH - 14);
+  }
+
+  if (frame === 'shadow') {
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(6, 6, totalW, totalH);
+    ctx.fillStyle = currentBg;
+    ctx.fillRect(0, 0, totalW - 3, totalH - 3);
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1.5, 1.5, totalW - 4.5, totalH - 4.5);
+  }
+
+  if (frame === 'label') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(3, 3, totalW - 6, size + pad * 2 - 6);
+    // Label band
+    ctx.fillStyle = currentFg;
+    ctx.fillRect(0, size + pad * 2, totalW, labelHeight);
+    ctx.fillStyle = currentBg;
+    ctx.font = 'bold 15px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labelText, totalW / 2, size + pad * 2 + labelHeight / 2);
+  }
+
+  // Draw QR
+  ctx.drawImage(srcCanvas, pad, pad, size, size);
+
+  qrDataURL = outputCanvas.toDataURL('image/png');
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// PNG Download
+function downloadPNG() {
+  if (!qrDataURL) return;
+  const a = document.createElement('a');
+  a.download = 'almahayri-qr.png';
+  a.href = qrDataURL;
+  a.click();
+}
+
+// SVG Download
+function downloadSVG() {
+  const canvas = document.getElementById('qr-canvas');
+  const w = canvas.width, h = canvas.height;
+  const dataUrl = canvas.toDataURL('image/png');
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <title>Almahayri QR Kod</title>
+  <image href="${dataUrl}" x="0" y="0" width="${w}" height="${h}"/>
+</svg>`;
+  const blob = new Blob([svg], {type: 'image/svg+xml'});
+  const a = document.createElement('a');
+  a.download = 'almahayri-qr.svg';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+}
+
+// PDF Download
+function downloadPDF() {
+  if (!qrDataURL) return;
+  const { jsPDF } = window.jspdf;
+  const canvas = document.getElementById('qr-canvas');
+  const pxW = canvas.width, pxH = canvas.height;
+
+  // Convert px to mm (96dpi → mm)
+  const mmW = pxW * 0.264583;
+  const mmH = pxH * 0.264583;
+
+  const pdf = new jsPDF({
+    orientation: mmW > mmH ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [mmW + 20, mmH + 20]
+  });
+
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(0, 0, mmW + 20, mmH + 20, 'F');
+  pdf.addImage(qrDataURL, 'PNG', 10, 10, mmW, mmH);
+
+  pdf.setFontSize(7);
+  pdf.setTextColor(180, 170, 150);
+  pdf.text('almahayri584-art.github.io/Almahayri', 10, mmH + 16);
+
+  pdf.save('almahayri-qr.pdf');
+}
+
+// Auto-generate on load
+window.addEventListener('load', () => {
+  setTimeout(generate, 600);
+});
+        
+
+// Color pickers
+document.getElementById('fg').addEventListener('input', function() {
+  currentFg = this.value;
+  document.getElementById('fg-val').textContent = this.value;
+});
+document.getElementById('bg').addEventListener('input', function() {
+  currentBg = this.value;
+  document.getElementById('bg-val').textContent = this.value;
+});
+
+// Palette buttons
+document.querySelectorAll('.palette-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const fg = this.dataset.fg;
+    const bg = this.dataset.bg;
+    currentFg = fg; currentBg = bg;
+    document.getElementById('fg').value = fg;
+    document.getElementById('bg').value = bg;
+    document.getElementById('fg-val').textContent = fg;
+    document.getElementById('bg-val').textContent = bg;
+  });
+});
+
+// Sliders
+document.getElementById('qr-size').addEventListener('input', function() {
+  currentSize = parseInt(this.value);
+  document.getElementById('size-val').textContent = this.value + 'px';
+});
+document.getElementById('qr-margin').addEventListener('input', function() {
+  document.getElementById('margin-val').textContent = this.value;
+});
+
+// Frame buttons
+document.querySelectorAll('.frame-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentFrame = this.dataset.frame;
+    document.getElementById('label-input-wrap').style.display = currentFrame === 'label' ? 'block' : 'none';
+  });
+});
+
+function generate() {
+  const text = document.getElementById('qr-url').value.trim();
+  if (!text) { alert('Lütfen bir URL veya metin girin.'); return; }
+  currentText = text;
+
+  const size = parseInt(document.getElementById('qr-size').value);
+  const margin = parseInt(document.getElementById('qr-margin').value);
+
+  // Generate QR into hidden div
+  const hidden = document.getElementById('qr-hidden');
+  hidden.innerHTML = '';
+
+  new QRCode(hidden, {
+    text: text,
+    width: size,
+    height: size,
+    colorDark: currentFg,
+    colorLight: currentBg,
+    correctLevel: QRCode.CorrectLevel.H,
+  });
+
+  setTimeout(() => {
+    const srcCanvas = hidden.querySelector('canvas');
+    if (!srcCanvas) return;
+
+    // Draw onto output canvas with frame
+    drawWithFrame(srcCanvas, size, margin);
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('qr-output').style.display = 'flex';
+    document.getElementById('preview-info').textContent = text.length + ' karakter · ' + size + '×' + size + 'px';
+  }, 200);
+}
+
+function drawWithFrame(srcCanvas, size, margin) {
+  const pad = margin * 10;
+  const outputCanvas = document.getElementById('qr-canvas');
+  const frame = currentFrame;
+  const labelText = document.getElementById('label-text').value || 'Almahayri';
+  const labelHeight = frame === 'label' ? 36 : 0;
+
+  const totalW = size + pad * 2;
+  const totalH = size + pad * 2 + labelHeight;
+
+  outputCanvas.width = totalW;
+  outputCanvas.height = totalH;
+
+  const ctx = outputCanvas.getContext('2d');
+  ctx.clearRect(0, 0, totalW, totalH);
+
+  // Background
+  ctx.fillStyle = currentBg;
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Frame drawings
+  if (frame === 'simple') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
+  }
+
+  if (frame === 'rounded') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 3;
+    roundRect(ctx, 3, 3, totalW - 6, totalH - 6, 14);
+    ctx.stroke();
+  }
+
+  if (frame === 'double') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(7, 7, totalW - 14, totalH - 14);
+  }
+
+  if (frame === 'shadow') {
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(6, 6, totalW, totalH);
+    ctx.fillStyle = currentBg;
+    ctx.fillRect(0, 0, totalW - 3, totalH - 3);
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1.5, 1.5, totalW - 4.5, totalH - 4.5);
+  }
+
+  if (frame === 'label') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(3, 3, totalW - 6, size + pad * 2 - 6);
+    // Label band
+    ctx.fillStyle = currentFg;
+    ctx.fillRect(0, size + pad * 2, totalW, labelHeight);
+    ctx.fillStyle = currentBg;
+    ctx.font = 'bold 15px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labelText, totalW / 2, size + pad * 2 + labelHeight / 2);
+  }
+
+  // Draw QR
+  ctx.drawImage(srcCanvas, pad, pad, size, size);
+
+  qrDataURL = outputCanvas.toDataURL('image/png');
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// PNG Download
+function downloadPNG() {
+  if (!qrDataURL) return;
+  const a = document.createElement('a');
+  a.download = 'almahayri-qr.png';
+  a.href = qrDataURL;
+  a.click();
+}
+
+// SVG Download
+function downloadSVG() {
+  const canvas = document.getElementById('qr-canvas');
+  const w = canvas.width, h = canvas.height;
+  const dataUrl = canvas.toDataURL('image/png');
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <title>Almahayri QR Kod</title>
+  <image href="${dataUrl}" x="0" y="0" width="${w}" height="${h}"/>
+</svg>`;
+  const blob = new Blob([svg], {type: 'image/svg+xml'});
+  const a = document.createElement('a');
+  a.download = 'almahayri-qr.svg';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+}
+
+// PDF Download
+function downloadPDF() {
+  if (!qrDataURL) return;
+  const { jsPDF } = window.jspdf;
+  const canvas = document.getElementById('qr-canvas');
+  const pxW = canvas.width, pxH = canvas.height;
+
+  // Convert px to mm (96dpi → mm)
+  const mmW = pxW * 0.264583;
+  const mmH = pxH * 0.264583;
+
+  const pdf = new jsPDF({
+    orientation: mmW > mmH ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [mmW + 20, mmH + 20]
+  });
+
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(0, 0, mmW + 20, mmH + 20, 'F');
+  pdf.addImage(qrDataURL, 'PNG', 10, 10, mmW, mmH);
+
+  pdf.setFontSize(7);
+  pdf.setTextColor(180, 170, 150);
+  pdf.text('almahayri584-art.github.io/Almahayri', 10, mmH + 16);
+
+  pdf.save('almahayri-qr.pdf');
+}
+
+// Auto-generate on load
+window.addEventListener('load', () => {
+  setTimeout(generate, 600);
+});
+
+      
 </script>
+
 </body>
 </html>
