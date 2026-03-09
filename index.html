@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -648,16 +649,33 @@ body {
     <div class="section active" id="sec-notes">
       <div class="card">
         <div class="card-title">
-          <span class="t" data-ar="الملاحظات المشتركة" data-tr="Ortak Notlar">الملاحظات المشتركة</span>
-          <span id="notes-sync-indicator"></span>
+          <span class="t" data-ar="إضافة ملاحظة جديدة" data-tr="Yeni Not Ekle">إضافة ملاحظة جديدة</span>
         </div>
-        <div class="notes-meta" id="notes-meta">...</div>
-        <textarea class="notes-area" id="notes-area" rows="10" placeholder="...اكتب ملاحظاتك هنا"></textarea>
+        <input type="text" id="note-title-input" class="notes-area t-ph" style="min-height:unset;height:42px;margin-bottom:8px;" data-ar-ph="عنوان الملاحظة (اختياري)" data-tr-ph="Başlık (isteğe bağlı)" placeholder="عنوان الملاحظة (اختياري)">
+        <textarea class="notes-area t-ph" id="note-content-input" rows="4" data-ar-ph="...اكتب ملاحظتك هنا" data-tr-ph="Notunuzu buraya yazın..." placeholder="...اكتب ملاحظتك هنا"></textarea>
         <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;">
-          <button class="save-btn" onclick="saveNotes()" id="notes-save-btn">
-            <span class="t" data-ar="حفظ" data-tr="Kaydet">حفظ</span>
+          <button class="save-btn" onclick="addNote()">
+            <span class="t" data-ar="+ إضافة" data-tr="+ Ekle">+ إضافة</span>
           </button>
           <div class="saved-toast" id="notes-toast">✓ <span class="t" data-ar="تم الحفظ" data-tr="Kaydedildi">تم الحفظ</span></div>
+        </div>
+      </div>
+      <div id="notes-list"></div>
+      <!-- Düzenleme modalı -->
+      <div id="note-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;padding:20px;align-items:center;justify-content:center;">
+        <div style="background:var(--surface);border-radius:var(--radius);padding:20px;width:100%;max-width:500px;box-shadow:var(--shadow-md);">
+          <div style="font-size:15px;font-weight:700;margin-bottom:14px;" class="t" data-ar="تعديل الملاحظة" data-tr="Notu Düzenle">تعديل الملاحظة</div>
+          <input type="text" id="edit-note-title" class="notes-area t-ph" style="min-height:unset;height:42px;margin-bottom:8px;" data-ar-ph="العنوان" data-tr-ph="Başlık" placeholder="العنوان">
+          <textarea class="notes-area" id="edit-note-content" rows="6"></textarea>
+          <input type="hidden" id="edit-note-key">
+          <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;">
+            <button onclick="closeNoteEdit()" style="padding:9px 18px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface2);font-family:inherit;font-size:13px;cursor:pointer;color:var(--text2);">
+              <span class="t" data-ar="إلغاء" data-tr="İptal">إلغاء</span>
+            </button>
+            <button onclick="saveNoteEdit()" class="save-btn" style="margin:0;">
+              <span class="t" data-ar="حفظ" data-tr="Kaydet">حفظ</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -735,110 +753,1061 @@ body {
 
     <!-- QR -->
     <div class="section" id="sec-qr">
-      <div class="qr-workspace">
-        <!-- Controls -->
-        <div class="qr-panel">
-          <div class="qr-section">
-            <div class="qr-label">URL / نص</div>
-            <textarea class="qr-input" id="qr-url" rows="3" placeholder="https://..."></textarea>
+      <style>
+        /* === QR Studio styles === */
+        
+  :root {
+    --ink: #1a1208;
+    --parchment: #faf8f3;
+    --gold: #c9a84c;
+    --gold-light: #e8d5a0;
+    --cream: #f2ede0;
+    --border: #d4c9a8;
+    --muted: #8a7f6a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--parchment);
+    font-family: 'DM Mono', monospace;
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* Subtle grain texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 52px;
+    padding-bottom: 36px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 900;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+
+  header p {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* Layout */
+  .workspace {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  @media (max-width: 860px) {
+    .workspace { grid-template-columns: 1fr; }
+  }
+
+  /* Panel */
+  .panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .panel-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--cream);
+  }
+  .panel-section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 9px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--gold-light);
+  }
+
+  /* Inputs */
+  input[type="text"], textarea {
+    width: 100%;
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+    resize: none;
+  }
+  input[type="text"]:focus, textarea:focus {
+    border-color: var(--gold);
+  }
+
+  /* Color pickers */
+  .color-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .color-field label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .color-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--parchment);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+
+  .color-input-wrap input[type="color"] {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .color-input-wrap span {
+    font-size: 11px;
+    color: var(--ink);
+    letter-spacing: 1px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* Frame options */
+  .frame-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .frame-btn {
+    background: var(--parchment);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 6px;
+    cursor: pointer;
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-transform: uppercase;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .frame-btn:hover { border-color: var(--gold); color: var(--ink); }
+  .frame-btn.active {
+    border-color: var(--gold);
+    background: #fdf8ed;
+    color: var(--ink);
+  }
+
+  .frame-preview {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Sliders */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .slider-row label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    min-width: 80px;
+  }
+  .slider-row input[type="range"] {
+    flex: 1;
+    accent-color: var(--gold);
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .slider-val {
+    font-size: 11px;
+    color: var(--ink);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Label text */
+  .label-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .label-toggle label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .toggle {
+    width: 36px;
+    height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: none;
+    outline: none;
+  }
+  .toggle.on { background: var(--gold); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 19px; }
+
+  /* Generate button */
+  .generate-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--ink);
+    color: var(--gold);
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+  .generate-btn:hover {
+    background: #2d2415;
+    transform: translateY(-1px);
+  }
+
+  /* Preview area */
+  .preview-panel {
+    position: sticky;
+    top: 24px;
+  }
+
+  .preview-box {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 480px;
+    justify-content: center;
+  }
+
+  #qr-render {
+    position: relative;
+    display: inline-block;
+  }
+
+  #qr-render canvas, #qr-render img {
+    display: block;
+  }
+
+  .frame-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  /* Download buttons */
+  .download-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 28px;
+    width: 100%;
+  }
+
+  .dl-btn {
+    padding: 12px 8px;
+    border-radius: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: var(--parchment);
+    color: var(--ink);
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .dl-btn:hover {
+    border-color: var(--gold);
+    background: #fdf8ed;
+    transform: translateY(-1px);
+  }
+
+  .dl-btn .ext {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--border);
+  }
+  .empty-state .icon { font-size: 64px; margin-bottom: 16px; }
+  .empty-state p { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
+
+  .preview-info {
+    margin-top: 16px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-align: center;
+  }
+
+      </style>
+      
+<div class="app">
+
+  <header>
+    <div class="eyebrow">✦ Baskıya Hazır ✦ Ömür Boyu Geçerli ✦ Sunucusuz</div>
+    <h1>QR Studio</h1>
+    <p>Almahayri — Kişisel QR Kod Tasarım Aracı</p>
+  </header>
+
+  <div class="workspace">
+
+    <!-- Controls -->
+    <div>
+      <div class="panel">
+
+        <!-- URL - locked -->
+        <div class="panel-section">
+          <div class="section-label">QR İçeriği (Sabit)</div>
+          <div style="
+            background: var(--cream);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          ">
+            <span style="font-size:16px;">🔒</span>
+            <div>
+              <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;">Kilitli URL</div>
+              <div style="font-size:11px;color:var(--ink);word-break:break-all;line-height:1.5;">https://almahayri584-art.github.io/Almahayri/</div>
+            </div>
           </div>
-          <div class="qr-section">
-            <div class="qr-label t" data-ar="الألوان" data-tr="Renkler">الألوان</div>
-            <div class="color-row">
-              <div class="color-field">
-                <label>FG</label>
-                <div class="color-wrap">
-                  <input type="color" id="qr-fg" value="#1c1a16">
-                  <span id="qr-fg-val">#1c1a16</span>
-                </div>
+          <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6;">
+            ✓ Bu URL değiştirilemez — QR kodun her zaman aynı adrese yönlendirir.
+          </div>
+          <input type="hidden" id="qr-url" value="https://almahayri584-art.github.io/Almahayri/">
+        </div>
+
+        <!-- Colors -->
+        <div class="panel-section">
+          <div class="section-label">Renkler</div>
+          <div class="color-row">
+            <div class="color-field">
+              <label>QR Rengi</label>
+              <div class="color-input-wrap" onclick="document.getElementById('fg').click()">
+                <input type="color" id="fg" value="#1a1208">
+                <span id="fg-val">#1a1208</span>
               </div>
-              <div class="color-field">
-                <label>BG</label>
-                <div class="color-wrap">
-                  <input type="color" id="qr-bg" value="#ffffff">
-                  <span id="qr-bg-val">#ffffff</span>
-                </div>
+            </div>
+            <div class="color-field">
+              <label>Arka Plan</label>
+              <div class="color-input-wrap" onclick="document.getElementById('bg').click()">
+                <input type="color" id="bg" value="#ffffff">
+                <span id="bg-val">#ffffff</span>
               </div>
             </div>
-            <div class="palette-row">
-              <div class="pal-btn" style="background:#1c1a16;border-color:#1c1a16" data-fg="#1c1a16" data-bg="#ffffff" title="Classic"></div>
-              <div class="pal-btn" style="background:#2d6a4f;border-color:#2d6a4f" data-fg="#2d6a4f" data-bg="#e8f5ee" title="Green"></div>
-              <div class="pal-btn" style="background:#c9a84c;border-color:#c9a84c" data-fg="#c9a84c" data-bg="#1c1a16" title="Gold"></div>
-              <div class="pal-btn" style="background:#c0392b;border-color:#c0392b" data-fg="#c0392b" data-bg="#fdf0ee" title="Red"></div>
-              <div class="pal-btn" style="background:#2980b9;border-color:#2980b9" data-fg="#2980b9" data-bg="#eaf4fb" title="Blue"></div>
-            </div>
           </div>
-          <div class="qr-section">
-            <div class="qr-label t" data-ar="الإطار" data-tr="Çerçeve">الإطار</div>
-            <div class="frame-grid">
-              <button class="frame-btn active" data-frame="none">
-                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" rx="2" fill="#ddd"/></svg>
-                <span class="t" data-ar="بدون" data-tr="Yok">بدون</span>
-              </button>
-              <button class="frame-btn" data-frame="simple">
-                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" rx="2" fill="#ddd"/><rect x="1" y="1" width="26" height="26" rx="2" fill="none" stroke="#888" stroke-width="2"/></svg>
-                <span class="t" data-ar="بسيط" data-tr="Basit">بسيط</span>
-              </button>
-              <button class="frame-btn" data-frame="rounded">
-                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" rx="6" fill="#ddd"/><rect x="1" y="1" width="26" height="26" rx="6" fill="none" stroke="#888" stroke-width="2"/></svg>
-                <span class="t" data-ar="مدوّر" data-tr="Yuvarlak">مدوّر</span>
-              </button>
-              <button class="frame-btn" data-frame="double">
-                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="3" y="3" width="22" height="22" fill="#ddd"/><rect x="1" y="1" width="26" height="26" fill="none" stroke="#888" stroke-width="1.5"/><rect x="4" y="4" width="20" height="20" fill="none" stroke="#888" stroke-width="1"/></svg>
-                <span class="t" data-ar="مزدوج" data-tr="Çift">مزدوج</span>
-              </button>
-              <button class="frame-btn" data-frame="shadow">
-                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="4" y="4" width="24" height="24" rx="2" fill="#ccc"/><rect x="2" y="2" width="24" height="24" rx="2" fill="white" stroke="#888" stroke-width="1.5"/><rect x="6" y="6" width="14" height="14" fill="#ddd"/></svg>
-                <span class="t" data-ar="ظل" data-tr="Gölge">ظل</span>
-              </button>
-              <button class="frame-btn" data-frame="label">
-                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="1" y="1" width="26" height="22" rx="2" stroke="#888" stroke-width="1.5" fill="white"/><rect x="1" y="23" width="26" height="4" rx="1" fill="#888"/><rect x="5" y="5" width="18" height="14" fill="#ddd"/></svg>
-                <span class="t" data-ar="ملصق" data-tr="Etiket">ملصق</span>
-              </button>
+
+          <div style="margin-top:12px">
+            <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Hazır Paletler</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div class="palette-btn" data-fg="#1a1208" data-bg="#ffffff" style="background:linear-gradient(135deg,#1a1208 50%,#fff 50%);width:32px;height:32px;border-radius:50%;border:2px solid var(--border);cursor:pointer;"></div>
+              <div class="palette-btn" data-fg="#c9a84c" data-bg="#1a1208" style="background:linear-gradient(135deg,#c9a84c 50%,#1a1208 50%);width:32px;height:32px;border-radius:50%;border:2px solid var(--border);cursor:pointer;"></div>
+              <div class="palette-btn" data-fg="#2c4a2e" data-bg="#f0f7f0" style="background:linear-gradient(135deg,#2c4a2e 50%,#f0f7f0 50%);width:32px;height:32px;border-radius:50%;border:2px solid var(--border);cursor:pointer;"></div>
+              <div class="palette-btn" data-fg="#8b1a1a" data-bg="#fff9f5" style="background:linear-gradient(135deg,#8b1a1a 50%,#fff9f5 50%);width:32px;height:32px;border-radius:50%;border:2px solid var(--border);cursor:pointer;"></div>
+              <div class="palette-btn" data-fg="#1a2a4a" data-bg="#f0f4ff" style="background:linear-gradient(135deg,#1a2a4a 50%,#f0f4ff 50%);width:32px;height:32px;border-radius:50%;border:2px solid var(--border);cursor:pointer;"></div>
+              <div class="palette-btn" data-fg="#3d2b1f" data-bg="#fdf6ee" style="background:linear-gradient(135deg,#3d2b1f 50%,#fdf6ee 50%);width:32px;height:32px;border-radius:50%;border:2px solid var(--border);cursor:pointer;"></div>
             </div>
-            <div id="qr-label-wrap" style="display:none;margin-top:10px;">
-              <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;" class="t" data-ar="نص الملصق" data-tr="Etiket metni">نص الملصق</div>
-              <input type="text" class="qr-input" id="qr-label-text" value="Almahayri" maxlength="30">
-            </div>
-          </div>
-          <div class="qr-section">
-            <div class="qr-label t" data-ar="الإعدادات" data-tr="Ayarlar">الإعدادات</div>
-            <div class="slider-row">
-              <label class="t" data-ar="الحجم" data-tr="Boyut">الحجم</label>
-              <input type="range" id="qr-size" min="120" max="400" value="280">
-              <span class="slider-val" id="qr-size-val">280px</span>
-            </div>
-            <div class="slider-row">
-              <label class="t" data-ar="الهامش" data-tr="Kenar boşluğu">الهامش</label>
-              <input type="range" id="qr-margin" min="0" max="4" value="1">
-              <span class="slider-val" id="qr-margin-val">1</span>
-            </div>
-          </div>
-          <div class="qr-section">
-            <button class="gen-btn" onclick="generateQR()">
-              ↳ <span class="t" data-ar="إنشاء QR كود" data-tr="QR Kod Oluştur">إنشاء QR كود</span>
-            </button>
           </div>
         </div>
 
-        <!-- Preview -->
-        <div class="qr-preview-panel">
-          <div id="qr-empty-state" class="qr-empty">
-            <div class="qr-empty-icon">▦</div>
-            <p class="t" data-ar="اضبط الإعدادات وأنشئ" data-tr="Ayarla ve oluştur">اضبط الإعدادات وأنشئ</p>
+        <!-- Size -->
+        <div class="panel-section">
+          <div class="section-label">Boyut & Boşluk</div>
+          <div class="slider-row">
+            <label>Boyut</label>
+            <input type="range" id="qr-size" min="150" max="500" value="280">
+            <span class="slider-val" id="size-val">280px</span>
           </div>
-          <div id="qr-output" style="display:none;flex-direction:column;align-items:center;">
+          <div class="slider-row">
+            <label>Kenar boşl.</label>
+            <input type="range" id="qr-margin" min="0" max="8" value="2">
+            <span class="slider-val" id="margin-val">2</span>
+          </div>
+        </div>
+
+        <!-- Frame -->
+        <div class="panel-section">
+          <div class="section-label">Çerçeve</div>
+          <div class="frame-grid">
+
+            <button class="frame-btn active" data-frame="none">
+              <div class="frame-preview">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <rect x="4" y="4" width="22" height="22" rx="2" stroke="#ccc" stroke-width="1.5"/>
+                  <rect x="8" y="8" width="14" height="14" fill="#ddd"/>
+                </svg>
+              </div>
+              Yok
+            </button>
+
+            <button class="frame-btn" data-frame="simple">
+              <div class="frame-preview">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <rect x="1" y="1" width="28" height="28" rx="3" stroke="#888" stroke-width="2"/>
+                  <rect x="6" y="6" width="18" height="18" fill="#ddd"/>
+                </svg>
+              </div>
+              Sade
+            </button>
+
+            <button class="frame-btn" data-frame="rounded">
+              <div class="frame-preview">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <rect x="1" y="1" width="28" height="28" rx="8" stroke="#888" stroke-width="2"/>
+                  <rect x="6" y="6" width="18" height="18" rx="3" fill="#ddd"/>
+                </svg>
+              </div>
+              Yuvarlak
+            </button>
+
+            <button class="frame-btn" data-frame="double">
+              <div class="frame-preview">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <rect x="1" y="1" width="28" height="28" rx="2" stroke="#888" stroke-width="1.5"/>
+                  <rect x="3.5" y="3.5" width="23" height="23" rx="1" stroke="#888" stroke-width="1"/>
+                  <rect x="7" y="7" width="16" height="16" fill="#ddd"/>
+                </svg>
+              </div>
+              Çift
+            </button>
+
+            <button class="frame-btn" data-frame="shadow">
+              <div class="frame-preview">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <rect x="4" y="4" width="24" height="24" rx="2" fill="#ccc"/>
+                  <rect x="2" y="2" width="24" height="24" rx="2" fill="white" stroke="#888" stroke-width="1.5"/>
+                  <rect x="6" y="6" width="14" height="14" fill="#ddd"/>
+                </svg>
+              </div>
+              Gölge
+            </button>
+
+            <button class="frame-btn" data-frame="label">
+              <div class="frame-preview">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                  <rect x="1" y="1" width="28" height="24" rx="2" stroke="#888" stroke-width="1.5"/>
+                  <rect x="1" y="25" width="28" height="4" rx="1" fill="#888"/>
+                  <rect x="6" y="5" width="18" height="16" fill="#ddd"/>
+                </svg>
+              </div>
+              Etiket
+            </button>
+
+          </div>
+
+          <!-- Label text (shown when frame=label) -->
+          <div id="label-input-wrap" style="display:none;margin-top:12px;">
+            <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Etiket Metni</div>
+            <input type="text" id="label-text" value="Almahayri" maxlength="30">
+          </div>
+        </div>
+
+        <!-- Generate -->
+        <div class="panel-section">
+          <button class="generate-btn" onclick="generate()">↳ QR Kodu Oluştur</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="preview-panel">
+      <div class="preview-box">
+        <div id="empty-state" class="empty-state">
+          <div class="icon">▦</div>
+          <p>Ayarlarını yap<br>ve oluştur</p>
+        </div>
+
+        <div id="qr-output" style="display:none;align-items:center;flex-direction:column;">
+          <div id="qr-frame-wrap">
             <div id="qr-hidden" style="position:absolute;left:-9999px;top:-9999px;"></div>
-            <canvas id="qr-canvas" style="max-width:100%;border-radius:8px;"></canvas>
-            <div style="margin-top:10px;font-size:11px;color:var(--text3);" id="qr-info"></div>
-            <div class="dl-row">
-              <button class="dl-btn" onclick="qrDownloadPNG()">🖼 PNG</button>
-              <button class="dl-btn" onclick="qrDownloadSVG()">✦ SVG</button>
-              <button class="dl-btn" onclick="qrDownloadPDF()">📄 PDF</button>
-            </div>
+            <canvas id="qr-canvas"></canvas>
+          </div>
+          <div class="preview-info" id="preview-info"></div>
+
+          <div class="download-row">
+            <button class="dl-btn" onclick="downloadPNG()">
+              <span class="ext">🖼</span>PNG
+            </button>
+            <button class="dl-btn" onclick="downloadSVG()">
+              <span class="ext">✦</span>SVG
+            </button>
+            <button class="dl-btn" onclick="downloadPDF()">
+              <span class="ext">📄</span>PDF
+            </button>
           </div>
         </div>
       </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let currentFrame = 'none';
+let currentFg = '#1a1208';
+let currentBg = '#ffffff';
+let qrDataURL = '';
+let currentSize = 280;
+let currentText = '';
+
+// Color pickers
+document.getElementById('fg').addEventListener('input', function() {
+  currentFg = this.value;
+  document.getElementById('fg-val').textContent = this.value;
+});
+document.getElementById('bg').addEventListener('input', function() {
+  currentBg = this.value;
+  document.getElementById('bg-val').textContent = this.value;
+});
+
+// Palette buttons
+document.querySelectorAll('.palette-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const fg = this.dataset.fg;
+    const bg = this.dataset.bg;
+    currentFg = fg; currentBg = bg;
+    document.getElementById('fg').value = fg;
+    document.getElementById('bg').value = bg;
+    document.getElementById('fg-val').textContent = fg;
+    document.getElementById('bg-val').textContent = bg;
+  });
+});
+
+// Sliders
+document.getElementById('qr-size').addEventListener('input', function() {
+  currentSize = parseInt(this.value);
+  document.getElementById('size-val').textContent = this.value + 'px';
+});
+document.getElementById('qr-margin').addEventListener('input', function() {
+  document.getElementById('margin-val').textContent = this.value;
+});
+
+// Frame buttons
+document.querySelectorAll('.frame-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentFrame = this.dataset.frame;
+    document.getElementById('label-input-wrap').style.display = currentFrame === 'label' ? 'block' : 'none';
+  });
+});
+
+function generate() {
+  const text = document.getElementById('qr-url').value.trim();
+  if (!text) { alert('Lütfen bir URL veya metin girin.'); return; }
+  currentText = text;
+
+  const size = parseInt(document.getElementById('qr-size').value);
+  const margin = parseInt(document.getElementById('qr-margin').value);
+
+  // Generate QR into hidden div
+  const hidden = document.getElementById('qr-hidden');
+  hidden.innerHTML = '';
+
+  new QRCode(hidden, {
+    text: text,
+    width: size,
+    height: size,
+    colorDark: currentFg,
+    colorLight: currentBg,
+    correctLevel: QRCode.CorrectLevel.H,
+  });
+
+  setTimeout(() => {
+    const srcCanvas = hidden.querySelector('canvas');
+    if (!srcCanvas) return;
+
+    // Draw onto output canvas with frame
+    drawWithFrame(srcCanvas, size, margin);
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('qr-output').style.display = 'flex';
+    document.getElementById('preview-info').textContent = text.length + ' karakter · ' + size + '×' + size + 'px';
+  }, 200);
+}
+
+function drawWithFrame(srcCanvas, size, margin) {
+  const pad = margin * 10;
+  const outputCanvas = document.getElementById('qr-canvas');
+  const frame = currentFrame;
+  const labelText = document.getElementById('label-text').value || 'Almahayri';
+  const labelHeight = frame === 'label' ? 36 : 0;
+
+  const totalW = size + pad * 2;
+  const totalH = size + pad * 2 + labelHeight;
+
+  outputCanvas.width = totalW;
+  outputCanvas.height = totalH;
+
+  const ctx = outputCanvas.getContext('2d');
+  ctx.clearRect(0, 0, totalW, totalH);
+
+  // Background
+  ctx.fillStyle = currentBg;
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Frame drawings
+  if (frame === 'simple') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
+  }
+
+  if (frame === 'rounded') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 3;
+    roundRect(ctx, 3, 3, totalW - 6, totalH - 6, 14);
+    ctx.stroke();
+  }
+
+  if (frame === 'double') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(7, 7, totalW - 14, totalH - 14);
+  }
+
+  if (frame === 'shadow') {
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(6, 6, totalW, totalH);
+    ctx.fillStyle = currentBg;
+    ctx.fillRect(0, 0, totalW - 3, totalH - 3);
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1.5, 1.5, totalW - 4.5, totalH - 4.5);
+  }
+
+  if (frame === 'label') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(3, 3, totalW - 6, size + pad * 2 - 6);
+    // Label band
+    ctx.fillStyle = currentFg;
+    ctx.fillRect(0, size + pad * 2, totalW, labelHeight);
+    ctx.fillStyle = currentBg;
+    ctx.font = 'bold 15px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labelText, totalW / 2, size + pad * 2 + labelHeight / 2);
+  }
+
+  // Draw QR
+  ctx.drawImage(srcCanvas, pad, pad, size, size);
+
+  qrDataURL = outputCanvas.toDataURL('image/png');
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// PNG Download
+function downloadPNG() {
+  if (!qrDataURL) return;
+  const a = document.createElement('a');
+  a.download = 'almahayri-qr.png';
+  a.href = qrDataURL;
+  a.click();
+}
+
+// SVG Download
+function downloadSVG() {
+  const canvas = document.getElementById('qr-canvas');
+  const w = canvas.width, h = canvas.height;
+  const dataUrl = canvas.toDataURL('image/png');
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <title>Almahayri QR Kod</title>
+  <image href="${dataUrl}" x="0" y="0" width="${w}" height="${h}"/>
+</svg>`;
+  const blob = new Blob([svg], {type: 'image/svg+xml'});
+  const a = document.createElement('a');
+  a.download = 'almahayri-qr.svg';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+}
+
+// PDF Download
+function downloadPDF() {
+  if (!qrDataURL) return;
+  const { jsPDF } = window.jspdf;
+  const canvas = document.getElementById('qr-canvas');
+  const pxW = canvas.width, pxH = canvas.height;
+
+  // Convert px to mm (96dpi → mm)
+  const mmW = pxW * 0.264583;
+  const mmH = pxH * 0.264583;
+
+  const pdf = new jsPDF({
+    orientation: mmW > mmH ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [mmW + 20, mmH + 20]
+  });
+
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(0, 0, mmW + 20, mmH + 20, 'F');
+  pdf.addImage(qrDataURL, 'PNG', 10, 10, mmW, mmH);
+
+  pdf.setFontSize(7);
+  pdf.setTextColor(180, 170, 150);
+  pdf.text('almahayri584-art.github.io/Almahayri', 10, mmH + 16);
+
+  pdf.save('almahayri-qr.pdf');
+}
+
+// Auto-generate on load
+window.addEventListener('load', () => {
+  setTimeout(generate, 600);
+});
+</script>
+
+      <script>
+        
+let currentFrame = 'none';
+let currentFg = '#1a1208';
+let currentBg = '#ffffff';
+let qrDataURL = '';
+let currentSize = 280;
+let currentText = '';
+
+// Color pickers
+document.getElementById('fg').addEventListener('input', function() {
+  currentFg = this.value;
+  document.getElementById('fg-val').textContent = this.value;
+});
+document.getElementById('bg').addEventListener('input', function() {
+  currentBg = this.value;
+  document.getElementById('bg-val').textContent = this.value;
+});
+
+// Palette buttons
+document.querySelectorAll('.palette-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const fg = this.dataset.fg;
+    const bg = this.dataset.bg;
+    currentFg = fg; currentBg = bg;
+    document.getElementById('fg').value = fg;
+    document.getElementById('bg').value = bg;
+    document.getElementById('fg-val').textContent = fg;
+    document.getElementById('bg-val').textContent = bg;
+  });
+});
+
+// Sliders
+document.getElementById('qr-size').addEventListener('input', function() {
+  currentSize = parseInt(this.value);
+  document.getElementById('size-val').textContent = this.value + 'px';
+});
+document.getElementById('qr-margin').addEventListener('input', function() {
+  document.getElementById('margin-val').textContent = this.value;
+});
+
+// Frame buttons
+document.querySelectorAll('.frame-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentFrame = this.dataset.frame;
+    document.getElementById('label-input-wrap').style.display = currentFrame === 'label' ? 'block' : 'none';
+  });
+});
+
+function generate() {
+  const text = document.getElementById('qr-url').value.trim();
+  if (!text) { alert('Lütfen bir URL veya metin girin.'); return; }
+  currentText = text;
+
+  const size = parseInt(document.getElementById('qr-size').value);
+  const margin = parseInt(document.getElementById('qr-margin').value);
+
+  // Generate QR into hidden div
+  const hidden = document.getElementById('qr-hidden');
+  hidden.innerHTML = '';
+
+  new QRCode(hidden, {
+    text: text,
+    width: size,
+    height: size,
+    colorDark: currentFg,
+    colorLight: currentBg,
+    correctLevel: QRCode.CorrectLevel.H,
+  });
+
+  setTimeout(() => {
+    const srcCanvas = hidden.querySelector('canvas');
+    if (!srcCanvas) return;
+
+    // Draw onto output canvas with frame
+    drawWithFrame(srcCanvas, size, margin);
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('qr-output').style.display = 'flex';
+    document.getElementById('preview-info').textContent = text.length + ' karakter · ' + size + '×' + size + 'px';
+  }, 200);
+}
+
+function drawWithFrame(srcCanvas, size, margin) {
+  const pad = margin * 10;
+  const outputCanvas = document.getElementById('qr-canvas');
+  const frame = currentFrame;
+  const labelText = document.getElementById('label-text').value || 'Almahayri';
+  const labelHeight = frame === 'label' ? 36 : 0;
+
+  const totalW = size + pad * 2;
+  const totalH = size + pad * 2 + labelHeight;
+
+  outputCanvas.width = totalW;
+  outputCanvas.height = totalH;
+
+  const ctx = outputCanvas.getContext('2d');
+  ctx.clearRect(0, 0, totalW, totalH);
+
+  // Background
+  ctx.fillStyle = currentBg;
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Frame drawings
+  if (frame === 'simple') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
+  }
+
+  if (frame === 'rounded') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 3;
+    roundRect(ctx, 3, 3, totalW - 6, totalH - 6, 14);
+    ctx.stroke();
+  }
+
+  if (frame === 'double') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(3, 3, totalW - 6, totalH - 6);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(7, 7, totalW - 14, totalH - 14);
+  }
+
+  if (frame === 'shadow') {
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(6, 6, totalW, totalH);
+    ctx.fillStyle = currentBg;
+    ctx.fillRect(0, 0, totalW - 3, totalH - 3);
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1.5, 1.5, totalW - 4.5, totalH - 4.5);
+  }
+
+  if (frame === 'label') {
+    ctx.strokeStyle = currentFg;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(3, 3, totalW - 6, size + pad * 2 - 6);
+    // Label band
+    ctx.fillStyle = currentFg;
+    ctx.fillRect(0, size + pad * 2, totalW, labelHeight);
+    ctx.fillStyle = currentBg;
+    ctx.font = 'bold 15px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labelText, totalW / 2, size + pad * 2 + labelHeight / 2);
+  }
+
+  // Draw QR
+  ctx.drawImage(srcCanvas, pad, pad, size, size);
+
+  qrDataURL = outputCanvas.toDataURL('image/png');
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// PNG Download
+function downloadPNG() {
+  if (!qrDataURL) return;
+  const a = document.createElement('a');
+  a.download = 'almahayri-qr.png';
+  a.href = qrDataURL;
+  a.click();
+}
+
+// SVG Download
+function downloadSVG() {
+  const canvas = document.getElementById('qr-canvas');
+  const w = canvas.width, h = canvas.height;
+  const dataUrl = canvas.toDataURL('image/png');
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <title>Almahayri QR Kod</title>
+  <image href="${dataUrl}" x="0" y="0" width="${w}" height="${h}"/>
+</svg>`;
+  const blob = new Blob([svg], {type: 'image/svg+xml'});
+  const a = document.createElement('a');
+  a.download = 'almahayri-qr.svg';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+}
+
+// PDF Download
+function downloadPDF() {
+  if (!qrDataURL) return;
+  const { jsPDF } = window.jspdf;
+  const canvas = document.getElementById('qr-canvas');
+  const pxW = canvas.width, pxH = canvas.height;
+
+  // Convert px to mm (96dpi → mm)
+  const mmW = pxW * 0.264583;
+  const mmH = pxH * 0.264583;
+
+  const pdf = new jsPDF({
+    orientation: mmW > mmH ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [mmW + 20, mmH + 20]
+  });
+
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(0, 0, mmW + 20, mmH + 20, 'F');
+  pdf.addImage(qrDataURL, 'PNG', 10, 10, mmW, mmH);
+
+  pdf.setFontSize(7);
+  pdf.setTextColor(180, 170, 150);
+  pdf.text('almahayri584-art.github.io/Almahayri', 10, mmH + 16);
+
+  pdf.save('almahayri-qr.pdf');
+}
+
+// Auto-generate on load
+window.addEventListener('load', () => {
+  setTimeout(generate, 600);
+});
+
+      </script>
     </div>
 
   </div><!-- /main -->
@@ -951,29 +1920,87 @@ window.addEventListener('firebase-ready', initApp, {once:true});
 function listenNotes() {
   fbOnValue(fbRef(db, 'notes'), snap => {
     const data = snap.val();
-    if(data) {
-      document.getElementById('notes-area').value = data.content || '';
-      const d = new Date(data.updatedAt);
-      document.getElementById('notes-meta').textContent =
-        (currentLang==='ar' ? 'آخر تحديث: ' : 'Son düzenleme: ') +
-        d.toLocaleString(currentLang==='ar' ? 'ar' : 'tr-TR');
-    }
+    renderNotes(data ? Object.entries(data) : []);
   });
 }
 
-function saveNotes() {
-  const btn = document.getElementById('notes-save-btn');
-  btn.disabled = true;
-  fbSet(fbRef(db, 'notes'), {
-    content: document.getElementById('notes-area').value,
-    updatedAt: Date.now()
-  }).then(() => {
-    btn.disabled = false;
+function renderNotes(entries) {
+  const list = document.getElementById('notes-list');
+  if(!entries.length) {
+    list.innerHTML = `<div class="empty-state"><div class="es-icon">📝</div><span>${currentLang==='ar'?'لا توجد ملاحظات':'Henüz not yok'}</span></div>`;
+    return;
+  }
+  // Yeniden eskiye sırala
+  entries.sort((a,b) => (b[1].createdAt||0) - (a[1].createdAt||0));
+  list.innerHTML = entries.map(([key, n]) => {
+    const d = new Date(n.createdAt||0);
+    const dateStr = d.toLocaleString(currentLang==='ar' ? 'ar' : 'tr-TR');
+    return `
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <div>
+          ${n.title ? `<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;">${esc(n.title)}</div>` : ''}
+          <div style="font-size:11px;color:var(--text3);">📅 ${dateStr}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="openNoteEdit('${key}')" style="padding:5px 10px;background:var(--accent-light);color:var(--accent);border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+            ${currentLang==='ar'?'تعديل':'Düzenle'}
+          </button>
+          <button onclick="deleteNote('${key}')" class="del-btn">✕</button>
+        </div>
+      </div>
+      <div style="font-size:14px;color:var(--text);line-height:1.7;white-space:pre-wrap;">${esc(n.content||'')}</div>
+    </div>`;
+  }).join('');
+}
+
+function addNote() {
+  const title   = document.getElementById('note-title-input').value.trim();
+  const content = document.getElementById('note-content-input').value.trim();
+  if(!content) return;
+  fbPush(fbRef(db,'notes'), { title, content, createdAt: Date.now() }).then(() => {
+    document.getElementById('note-title-input').value = '';
+    document.getElementById('note-content-input').value = '';
     const t = document.getElementById('notes-toast');
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2000);
   });
 }
+
+function deleteNote(key) {
+  if(!confirm(currentLang==='ar'?'هل تريد حذف هذه الملاحظة؟':'Bu notu silmek istiyor musunuz?')) return;
+  fbRemove(fbRef(db, `notes/${key}`));
+}
+
+function openNoteEdit(key) {
+  fbGet(fbRef(db, `notes/${key}`)).then(snap => {
+    const n = snap.val();
+    document.getElementById('edit-note-title').value   = n.title||'';
+    document.getElementById('edit-note-content').value = n.content||'';
+    document.getElementById('edit-note-key').value     = key;
+    const modal = document.getElementById('note-edit-modal');
+    modal.style.display = 'flex';
+  });
+}
+
+function closeNoteEdit() {
+  document.getElementById('note-edit-modal').style.display = 'none';
+}
+
+function saveNoteEdit() {
+  const key     = document.getElementById('edit-note-key').value;
+  const title   = document.getElementById('edit-note-title').value.trim();
+  const content = document.getElementById('edit-note-content').value.trim();
+  if(!content) return;
+  fbUpdate(fbRef(db, `notes/${key}`), { title, content }).then(() => {
+    closeNoteEdit();
+  });
+}
+
+// Modal dışına tıklayınca kapat
+document.getElementById('note-edit-modal').addEventListener('click', function(e) {
+  if(e.target === this) closeNoteEdit();
+});
 
 // ================================
 // LINKS
@@ -1172,120 +2199,6 @@ function deleteProduct(key) {
   fbRemove(fbRef(db, `stock/${key}`));
 }
 
-// ================================
-// QR STUDIO
-// ================================
-let qrFrame = 'none';
-let qrFg = '#1c1a16';
-let qrBg = '#ffffff';
-let qrDataURL = '';
-
-document.getElementById('qr-fg').addEventListener('input', function(){
-  qrFg = this.value;
-  document.getElementById('qr-fg-val').textContent = this.value;
-});
-document.getElementById('qr-bg').addEventListener('input', function(){
-  qrBg = this.value;
-  document.getElementById('qr-bg-val').textContent = this.value;
-});
-
-document.querySelectorAll('.pal-btn').forEach(btn => {
-  btn.addEventListener('click', function(){
-    const fg = this.dataset.fg, bg = this.dataset.bg;
-    qrFg = fg; qrBg = bg;
-    document.getElementById('qr-fg').value = fg;
-    document.getElementById('qr-bg').value = bg;
-    document.getElementById('qr-fg-val').textContent = fg;
-    document.getElementById('qr-bg-val').textContent = bg;
-  });
-});
-
-document.getElementById('qr-size').addEventListener('input', function(){
-  document.getElementById('qr-size-val').textContent = this.value + 'px';
-});
-document.getElementById('qr-margin').addEventListener('input', function(){
-  document.getElementById('qr-margin-val').textContent = this.value;
-});
-
-document.querySelectorAll('.frame-btn').forEach(btn => {
-  btn.addEventListener('click', function(){
-    document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    qrFrame = this.dataset.frame;
-    document.getElementById('qr-label-wrap').style.display = qrFrame === 'label' ? 'block' : 'none';
-  });
-});
-
-function generateQR() {
-  const text = document.getElementById('qr-url').value.trim();
-  if(!text) { alert(currentLang==='ar'?'أدخل URL أو نصاً':'URL veya metin girin'); return; }
-  const size = parseInt(document.getElementById('qr-size').value);
-  const margin = parseInt(document.getElementById('qr-margin').value);
-
-  const hidden = document.getElementById('qr-hidden');
-  hidden.innerHTML = '';
-
-  new QRCode(hidden, {
-    text, width: size, height: size,
-    colorDark: qrFg, colorLight: qrBg,
-    correctLevel: QRCode.CorrectLevel.H
-  });
-
-  setTimeout(() => {
-    const src = hidden.querySelector('canvas');
-    if(!src) return;
-    drawQRFrame(src, size, margin);
-    document.getElementById('qr-empty-state').style.display = 'none';
-    document.getElementById('qr-output').style.display = 'flex';
-    document.getElementById('qr-info').textContent = text.length + ' chars · ' + size + '×' + size + 'px';
-  }, 200);
-}
-
-function drawQRFrame(srcCanvas, size, margin) {
-  const pad = margin * 10;
-  const labelText = document.getElementById('qr-label-text').value || 'Almahayri';
-  const labelH = qrFrame === 'label' ? 36 : 0;
-  const totalW = size + pad*2;
-  const totalH = size + pad*2 + labelH;
-  const canvas = document.getElementById('qr-canvas');
-  canvas.width = totalW; canvas.height = totalH;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,totalW,totalH);
-  ctx.fillStyle = qrBg;
-  ctx.fillRect(0,0,totalW,totalH);
-
-  if(qrFrame==='simple') { ctx.strokeStyle=qrFg; ctx.lineWidth=3; ctx.strokeRect(3,3,totalW-6,totalH-6); }
-  if(qrFrame==='rounded') { ctx.strokeStyle=qrFg; ctx.lineWidth=3; qrRoundRect(ctx,3,3,totalW-6,totalH-6,14); ctx.stroke(); }
-  if(qrFrame==='double') { ctx.strokeStyle=qrFg; ctx.lineWidth=2.5; ctx.strokeRect(3,3,totalW-6,totalH-6); ctx.lineWidth=1; ctx.strokeRect(7,7,totalW-14,totalH-14); }
-  if(qrFrame==='shadow') { ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(6,6,totalW,totalH); ctx.fillStyle=qrBg; ctx.fillRect(0,0,totalW-3,totalH-3); ctx.strokeStyle=qrFg; ctx.lineWidth=2; ctx.strokeRect(1.5,1.5,totalW-4.5,totalH-4.5); }
-  if(qrFrame==='label') { ctx.strokeStyle=qrFg; ctx.lineWidth=2.5; ctx.strokeRect(3,3,totalW-6,size+pad*2-6); ctx.fillStyle=qrFg; ctx.fillRect(0,size+pad*2,totalW,labelH); ctx.fillStyle=qrBg; ctx.font='bold 15px Georgia,serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(labelText,totalW/2,size+pad*2+labelH/2); }
-
-  ctx.drawImage(srcCanvas, pad, pad, size, size);
-  qrDataURL = canvas.toDataURL('image/png');
-}
-
-function qrRoundRect(ctx,x,y,w,h,r) {
-  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
-}
-
-function qrDownloadPNG() {
-  if(!qrDataURL) return;
-  const a = document.createElement('a'); a.download='almahayri-qr.png'; a.href=qrDataURL; a.click();
-}
-function qrDownloadSVG() {
-  const canvas = document.getElementById('qr-canvas');
-  const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><image href="${canvas.toDataURL()}" x="0" y="0" width="${canvas.width}" height="${canvas.height}"/></svg>`;
-  const a = document.createElement('a'); a.download='almahayri-qr.svg'; a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'})); a.click();
-}
-function qrDownloadPDF() {
-  if(!qrDataURL) return;
-  const {jsPDF} = window.jspdf;
-  const canvas = document.getElementById('qr-canvas');
-  const mmW = canvas.width*0.264583, mmH = canvas.height*0.264583;
-  const pdf = new jsPDF({orientation: mmW>mmH?'landscape':'portrait',unit:'mm',format:[mmW+20,mmH+20]});
-  pdf.addImage(qrDataURL,'PNG',10,10,mmW,mmH);
-  pdf.save('almahayri-qr.pdf');
-}
 
 // ================================
 // HELPERS
