@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>المحيري — لوحة الإدارة</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, update, remove, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  // Google Drive link sistemi - Storage kullanılmıyor
+
+  // ========================
+  // 🔧 Firebase yapılandırması - buraya kendi bilgilerini gir
+  // ========================
+  const firebaseConfig = {
+    apiKey: "AIzaSyB1J1O9zvcxwSRaaQczzNCSjzQ6zf_xc4Q",
+    authDomain: "almahayri-ozel.firebaseapp.com",
+    databaseURL: "https://almahayri-ozel-default-rtdb.firebaseio.com",
+    projectId: "almahayri-ozel",
+    storageBucket: "almahayri-ozel.firebasestorage.app",
+    messagingSenderId: "564677379969",
+    appId: "1:564677379969:web:1e5243ef52e945428c4a80"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  // storage yok - Drive link sistemi aktif
+
+  window.__db = db;
+  // window.__storage yok
+  window.__ref = ref;
+  
+  window.__set = set;
+  window.__get = get;
+  window.__onValue = onValue;
+  window.__update = update;
+  window.__remove = remove;
+  window.__push = push;
+  
+  
+  
+
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<style>
+:root {
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --surface2: #f0ede6;
+  --border: #e2ddd4;
+  --border2: #ccc7bb;
+  --text: #1c1a16;
+  --text2: #6b6559;
+  --text3: #9e9790;
+  --accent: #2d6a4f;
+  --accent-light: #e8f5ee;
+  --accent2: #c9a84c;
+  --danger: #c0392b;
+  --danger-light: #fdf0ee;
+  --warning: #e67e22;
+  --warning-light: #fef5e7;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+}
+
+[data-theme="dark"] {
+  --bg: #141210;
+  --surface: #1e1c18;
+  --surface2: #252320;
+  --border: #2e2c28;
+  --border2: #3d3a34;
+  --text: #f0ede6;
+  --text2: #a09a90;
+  --text3: #6b6560;
+  --accent-light: #1a3327;
+  --danger-light: #2a1210;
+  --warning-light: #2a1e08;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ===== LOGIN ===== */
+#login-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+}
+
+.login-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px 32px;
+  width: 100%; max-width: 360px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.login-logo {
+  font-size: 32px; font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 6px;
+  letter-spacing: -1px;
+}
+
+.login-sub {
+  font-size: 13px; color: var(--text2);
+  margin-bottom: 28px;
+}
+
+.login-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-family: inherit; font-size: 16px;
+  color: var(--text);
+  outline: none;
+  text-align: center; letter-spacing: 4px;
+  margin-bottom: 16px;
+  transition: border-color .2s;
+}
+.login-input:focus { border-color: var(--accent); }
+
+.login-btn {
+  width: 100%; padding: 13px;
+  background: var(--accent);
+  color: #fff; border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.login-btn:hover { opacity: .88; }
+.login-err { color: var(--danger); font-size: 13px; margin-top: 10px; }
+
+/* ===== TOP BAR ===== */
+#app { display: none; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.topbar-logo { font-size: 18px; font-weight: 700; color: var(--accent); }
+
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+.lang-btn {
+  padding: 5px 12px;
+  border: 1.5px solid var(--border2);
+  border-radius: 20px;
+  background: var(--surface2);
+  color: var(--text2);
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .2s;
+}
+.lang-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.icon-btn {
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px; transition: all .2s;
+  color: var(--text2);
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ===== TAB NAV ===== */
+.tab-nav {
+  display: flex; overflow-x: auto; gap: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  flex: none;
+  padding: 12px 16px;
+  border: none; background: none;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  border-bottom: 2.5px solid transparent;
+  white-space: nowrap;
+  transition: all .2s;
+  display: flex; align-items: center; gap: 6px;
+}
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-btn .tab-icon { font-size: 15px; }
+
+/* ===== MAIN ===== */
+.main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+.section { display: none; }
+.section.active { display: block; }
+
+/* ===== CARD ===== */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+
+.card-title {
+  font-size: 13px; font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ===== NOTES ===== */
+.notes-meta {
+  font-size: 11px; color: var(--text3);
+  margin-bottom: 8px;
+}
+
+.notes-area {
+  width: 100%;
+  min-height: 200px;
+  padding: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-family: inherit; font-size: 14px;
+  color: var(--text); resize: vertical;
+  outline: none; transition: border-color .2s;
+  line-height: 1.8;
+}
+.notes-area:focus { border-color: var(--accent); }
+
+.save-btn {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #fff; border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: opacity .2s;
+}
+.save-btn:hover { opacity: .85; }
+.save-btn:disabled { opacity: .5; cursor: default; }
+
+.saved-toast {
+  display: inline-block;
+  margin-top: 8px; padding: 5px 12px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: 20px; font-size: 12px;
+  opacity: 0; transition: opacity .3s;
+}
+.saved-toast.show { opacity: 1; }
+
+/* ===== LINKS ===== */
+.add-row {
+  display: flex; gap: 8px; margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.add-row input {
+  flex: 1; min-width: 120px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-family: inherit; font-size: 13px;
+  color: var(--text); outline: none;
+  transition: border-color .2s;
+}
+.add-row input:focus { border-color: var(--accent); }
+
+.add-btn {
+  padding: 10px 16px;
+  background: var(--accent);
+  color: #fff; border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: opacity .2s;
+}
+.add-btn:hover { opacity: .85; }
+
+.links-list { display: flex; flex-direction: column; gap: 8px; }
+
+.link-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.link-icon {
+  width: 28px; height: 28px;
+  background: var(--accent-light);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}
+
+.link-info { flex: 1; min-width: 0; }
+.link-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.link-url { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.link-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.open-btn {
+  padding: 5px 10px;
+  background: var(--accent-light);
+  color: var(--accent); border: none;
+  border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center;
+}
+
+.del-btn {
+  padding: 5px 10px;
+  background: var(--danger-light);
+  color: var(--danger); border: none;
+  border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+
+/* ===== FILES ===== */
+.cat-add-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.cat-add-row input {
+  flex: 1; padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-family: inherit; font-size: 13px; color: var(--text); outline: none;
+  transition: border-color .2s;
+}
+.cat-add-row input:focus { border-color: var(--accent); }
+
+.category-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.category-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+
+.cat-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.cat-count { font-size: 11px; color: var(--text3); background: var(--surface); padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); }
+
+.category-body { padding: 12px 14px; }
+
+.file-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.file-icon { font-size: 20px; flex-shrink: 0; }
+.file-info { flex: 1; min-width: 0; }
+.file-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-size { font-size: 11px; color: var(--text3); }
+.file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.view-btn {
+  padding: 5px 10px;
+  background: var(--accent-light);
+  color: var(--accent); border: none;
+  border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center;
+}
+
+.upload-area {
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  margin-top: 8px;
+}
+.upload-area:hover { border-color: var(--accent); background: var(--accent-light); }
+.upload-area input { display: none; }
+.upload-label {
+  font-size: 13px; color: var(--text2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.upload-progress {
+  margin-top: 8px; font-size: 12px; color: var(--accent);
+}
+
+/* ===== STOCK ===== */
+.stock-add-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.stock-add-row input {
+  flex: 1; min-width: 100px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-family: inherit; font-size: 13px; color: var(--text); outline: none;
+  transition: border-color .2s;
+}
+.stock-add-row input:focus { border-color: var(--accent); }
+
+.stock-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+.stock-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 500px;
+}
+
+.stock-table th {
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-bottom: 2px solid var(--border);
+  font-weight: 600; color: var(--text2);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.stock-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.stock-table tr:last-child td { border-bottom: none; }
+.stock-table tr:hover td { background: var(--surface2); }
+
+.stock-qty {
+  font-size: 16px; font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+  min-width: 50px; text-align: center;
+}
+.stock-qty.ok { background: var(--accent-light); color: var(--accent); }
+.stock-qty.low { background: var(--danger-light); color: var(--danger); }
+
+.qty-input {
+  width: 70px; padding: 6px 8px;
+  border: 1.5px solid var(--border); border-radius: 6px;
+  background: var(--surface2);
+  font-family: 'DM Mono', monospace; font-size: 13px;
+  color: var(--text); outline: none; text-align: center;
+  transition: border-color .2s;
+}
+.qty-input:focus { border-color: var(--accent); }
+
+.apply-btn {
+  padding: 6px 10px;
+  border: none; border-radius: 6px;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: opacity .2s;
+}
+.apply-sold { background: var(--danger-light); color: var(--danger); }
+.apply-add  { background: var(--accent-light); color: var(--accent); }
+.apply-btn:hover { opacity: .75; }
+
+/* ===== QR STUDIO ===== */
+.qr-workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media(min-width:700px) {
+  .qr-workspace { grid-template-columns: 360px 1fr; }
+}
+
+.qr-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.qr-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.qr-section:last-child { border-bottom: none; }
+.qr-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent2); margin-bottom: 10px; font-weight: 600; }
+
+.qr-input {
+  width: 100%; padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-family: inherit; font-size: 13px; color: var(--text); outline: none;
+  transition: border-color .2s; resize: none;
+}
+.qr-input:focus { border-color: var(--accent2); }
+
+.color-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.color-field label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); display: block; margin-bottom: 5px; }
+.color-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 6px 10px; cursor: pointer;
+}
+.color-wrap input[type="color"] { width: 26px; height: 26px; border: none; border-radius: 50%; padding: 0; background: none; cursor: pointer; outline: none; }
+.color-wrap span { font-size: 11px; color: var(--text); font-family: 'DM Mono', monospace; }
+
+.palette-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.pal-btn { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .15s; }
+.pal-btn:hover { transform: scale(1.2); }
+
+.frame-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.frame-btn {
+  background: var(--surface2); border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 6px; cursor: pointer; text-align: center;
+  font-family: inherit; font-size: 9px; letter-spacing: 1px; color: var(--text2);
+  text-transform: uppercase; transition: all .15s;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+}
+.frame-btn:hover, .frame-btn.active { border-color: var(--accent2); color: var(--text); background: var(--warning-light); }
+
+.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.slider-row label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); min-width: 70px; }
+.slider-row input[type="range"] { flex: 1; accent-color: var(--accent2); background: none; border: none; padding: 0; }
+.slider-val { font-size: 11px; color: var(--text); min-width: 36px; text-align: end; font-family: 'DM Mono', monospace; }
+
+.gen-btn {
+  width: 100%; padding: 14px;
+  background: var(--text); color: var(--accent2);
+  border: none; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; letter-spacing: 1px;
+  transition: opacity .2s;
+}
+.gen-btn:hover { opacity: .85; }
+
+.qr-preview-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 280px; box-shadow: var(--shadow); }
+
+.qr-empty { text-align: center; color: var(--text3); }
+.qr-empty .qr-empty-icon { font-size: 48px; margin-bottom: 10px; }
+
+.dl-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; justify-content: center; }
+.dl-btn {
+  padding: 9px 16px;
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; gap: 5px;
+}
+.dl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ===== EMPTY STATE ===== */
+.empty-state { text-align: center; padding: 28px 16px; color: var(--text3); font-size: 13px; }
+.empty-state .es-icon { font-size: 36px; margin-bottom: 8px; }
+
+/* ===== LOADING ===== */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== RTL helpers ===== */
+[dir="ltr"] { font-family: 'IBM Plex Sans Arabic', sans-serif; }
+
+/* ===== Responsive ===== */
+@media(max-width:480px) {
+  .main { padding: 12px; }
+  .card { padding: 12px; }
+  .add-row { flex-direction: column; }
+  .stock-add-row input { min-width: 0; }
+}
+
+/* toggle */
+.toggle { width: 36px; height: 20px; background: var(--border2); border-radius: 10px; position: relative; cursor: pointer; transition: background .2s; border: none; outline: none; }
+.toggle.on { background: var(--accent2); }
+.toggle::after { content:''; position: absolute; width: 14px; height: 14px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: left .2s; }
+.toggle.on::after { left: 19px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">المحيري</div>
+    <div class="login-sub" id="login-sub-text">أدخل كلمة المرور للدخول</div>
+    <input type="password" class="login-input" id="pw-input" placeholder="••••••••" maxlength="30">
+    <button class="login-btn" onclick="checkLogin()" id="login-btn-el">دخول</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">المحيري</div>
+    <div class="topbar-actions">
+      <button class="lang-btn" onclick="toggleLang()" id="lang-btn">TR</button>
+      <div class="icon-btn" onclick="toggleTheme()" title="Dark mode">🌙</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="showTab('notes',this)"><span class="tab-icon">📝</span><span class="tab-label" data-ar="الملاحظات" data-tr="Notlar">الملاحظات</span></button>
+    <button class="tab-btn" onclick="showTab('links',this)"><span class="tab-icon">🔗</span><span class="tab-label" data-ar="الروابط" data-tr="Linkler">الروابط</span></button>
+    <button class="tab-btn" onclick="showTab('files',this)"><span class="tab-icon">📁</span><span class="tab-label" data-ar="الملفات" data-tr="Dosyalar">الملفات</span></button>
+    <button class="tab-btn" onclick="showTab('stock',this)"><span class="tab-icon">📦</span><span class="tab-label" data-ar="المخزون" data-tr="Stok">المخزون</span></button>
+    <button class="tab-btn" onclick="showTab('qr',this)"><span class="tab-icon">▦</span><span class="tab-label" data-ar="QR كود" data-tr="QR Kod">QR كود</span></button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- NOTES -->
+    <div class="section active" id="sec-notes">
+      <div class="card">
+        <div class="card-title">
+          <span class="t" data-ar="الملاحظات المشتركة" data-tr="Ortak Notlar">الملاحظات المشتركة</span>
+          <span id="notes-sync-indicator"></span>
+        </div>
+        <div class="notes-meta" id="notes-meta">...</div>
+        <textarea class="notes-area" id="notes-area" rows="10" placeholder="...اكتب ملاحظاتك هنا"></textarea>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;">
+          <button class="save-btn" onclick="saveNotes()" id="notes-save-btn">
+            <span class="t" data-ar="حفظ" data-tr="Kaydet">حفظ</span>
+          </button>
+          <div class="saved-toast" id="notes-toast">✓ <span class="t" data-ar="تم الحفظ" data-tr="Kaydedildi">تم الحفظ</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LINKS -->
+    <div class="section" id="sec-links">
+      <div class="card">
+        <div class="card-title t" data-ar="إضافة رابط جديد" data-tr="Yeni Link Ekle">إضافة رابط جديد</div>
+        <div class="add-row">
+          <input type="text" id="link-name" placeholder="الاسم" class="t-ph" data-ar-ph="الاسم" data-tr-ph="İsim">
+          <input type="url" id="link-url" placeholder="https://">
+          <button class="add-btn" onclick="addLink()">
+            <span class="t" data-ar="+ إضافة" data-tr="+ Ekle">+ إضافة</span>
+          </button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title t" data-ar="الروابط المحفوظة" data-tr="Kayıtlı Linkler">الروابط المحفوظة</div>
+        <div class="links-list" id="links-list">
+          <div class="empty-state"><div class="es-icon">🔗</div><span class="t" data-ar="لا توجد روابط" data-tr="Henüz link yok">لا توجد روابط</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILES -->
+    <div class="section" id="sec-files">
+      <div class="card">
+        <div class="card-title t" data-ar="إضافة فئة جديدة" data-tr="Yeni Kategori Ekle">إضافة فئة جديدة</div>
+        <div class="cat-add-row">
+          <input type="text" id="cat-name-input" placeholder="اسم الفئة" class="t-ph" data-ar-ph="اسم الفئة" data-tr-ph="Kategori adı">
+          <button class="add-btn" onclick="addCategory()">
+            <span class="t" data-ar="+ إضافة" data-tr="+ Ekle">+ إضافة</span>
+          </button>
+        </div>
+      </div>
+      <div id="categories-list">
+        <div class="empty-state"><div class="es-icon">📁</div><span class="t" data-ar="لا توجد فئات" data-tr="Henüz kategori yok">لا توجد فئات</span></div>
+      </div>
+    </div>
+
+    <!-- STOCK -->
+    <div class="section" id="sec-stock">
+      <div class="card">
+        <div class="card-title t" data-ar="إضافة منتج جديد" data-tr="Yeni Ürün Ekle">إضافة منتج جديد</div>
+        <div class="stock-add-row">
+          <input type="text" id="prod-name" placeholder="اسم المنتج" class="t-ph" data-ar-ph="اسم المنتج" data-tr-ph="Ürün adı">
+          <input type="number" id="prod-qty" placeholder="الكمية" min="0" class="t-ph" data-ar-ph="الكمية" data-tr-ph="Adet">
+          <button class="add-btn" onclick="addProduct()">
+            <span class="t" data-ar="+ إضافة" data-tr="+ Ekle">+ إضافة</span>
+          </button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <span class="t" data-ar="قائمة المخزون" data-tr="Stok Listesi">قائمة المخزون</span>
+          <span style="font-size:11px;color:var(--warning);font-weight:400;" class="t" data-ar="⚠ أقل من 100 = تحذير" data-tr="⚠ 100'ün altı = uyarı">⚠ أقل من 100 = تحذير</span>
+        </div>
+        <div class="stock-table-wrap">
+          <table class="stock-table" id="stock-table">
+            <thead>
+              <tr>
+                <th class="t" data-ar="المنتج" data-tr="Ürün">المنتج</th>
+                <th class="t" data-ar="الكمية" data-tr="Adet">الكمية</th>
+                <th class="t" data-ar="مُباع" data-tr="Satıldı">مُباع</th>
+                <th class="t" data-ar="مُضاف" data-tr="Eklendi">مُضاف</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="stock-tbody"></tbody>
+          </table>
+        </div>
+        <div id="stock-empty" class="empty-state" style="display:none;"><div class="es-icon">📦</div><span class="t" data-ar="لا توجد منتجات" data-tr="Henüz ürün yok">لا توجد منتجات</span></div>
+      </div>
+    </div>
+
+    <!-- QR -->
+    <div class="section" id="sec-qr">
+      <div class="qr-workspace">
+        <!-- Controls -->
+        <div class="qr-panel">
+          <div class="qr-section">
+            <div class="qr-label">URL / نص</div>
+            <textarea class="qr-input" id="qr-url" rows="3" placeholder="https://..."></textarea>
+          </div>
+          <div class="qr-section">
+            <div class="qr-label t" data-ar="الألوان" data-tr="Renkler">الألوان</div>
+            <div class="color-row">
+              <div class="color-field">
+                <label>FG</label>
+                <div class="color-wrap">
+                  <input type="color" id="qr-fg" value="#1c1a16">
+                  <span id="qr-fg-val">#1c1a16</span>
+                </div>
+              </div>
+              <div class="color-field">
+                <label>BG</label>
+                <div class="color-wrap">
+                  <input type="color" id="qr-bg" value="#ffffff">
+                  <span id="qr-bg-val">#ffffff</span>
+                </div>
+              </div>
+            </div>
+            <div class="palette-row">
+              <div class="pal-btn" style="background:#1c1a16;border-color:#1c1a16" data-fg="#1c1a16" data-bg="#ffffff" title="Classic"></div>
+              <div class="pal-btn" style="background:#2d6a4f;border-color:#2d6a4f" data-fg="#2d6a4f" data-bg="#e8f5ee" title="Green"></div>
+              <div class="pal-btn" style="background:#c9a84c;border-color:#c9a84c" data-fg="#c9a84c" data-bg="#1c1a16" title="Gold"></div>
+              <div class="pal-btn" style="background:#c0392b;border-color:#c0392b" data-fg="#c0392b" data-bg="#fdf0ee" title="Red"></div>
+              <div class="pal-btn" style="background:#2980b9;border-color:#2980b9" data-fg="#2980b9" data-bg="#eaf4fb" title="Blue"></div>
+            </div>
+          </div>
+          <div class="qr-section">
+            <div class="qr-label t" data-ar="الإطار" data-tr="Çerçeve">الإطار</div>
+            <div class="frame-grid">
+              <button class="frame-btn active" data-frame="none">
+                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" rx="2" fill="#ddd"/></svg>
+                <span class="t" data-ar="بدون" data-tr="Yok">بدون</span>
+              </button>
+              <button class="frame-btn" data-frame="simple">
+                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" rx="2" fill="#ddd"/><rect x="1" y="1" width="26" height="26" rx="2" fill="none" stroke="#888" stroke-width="2"/></svg>
+                <span class="t" data-ar="بسيط" data-tr="Basit">بسيط</span>
+              </button>
+              <button class="frame-btn" data-frame="rounded">
+                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="2" y="2" width="24" height="24" rx="6" fill="#ddd"/><rect x="1" y="1" width="26" height="26" rx="6" fill="none" stroke="#888" stroke-width="2"/></svg>
+                <span class="t" data-ar="مدوّر" data-tr="Yuvarlak">مدوّر</span>
+              </button>
+              <button class="frame-btn" data-frame="double">
+                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="3" y="3" width="22" height="22" fill="#ddd"/><rect x="1" y="1" width="26" height="26" fill="none" stroke="#888" stroke-width="1.5"/><rect x="4" y="4" width="20" height="20" fill="none" stroke="#888" stroke-width="1"/></svg>
+                <span class="t" data-ar="مزدوج" data-tr="Çift">مزدوج</span>
+              </button>
+              <button class="frame-btn" data-frame="shadow">
+                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="4" y="4" width="24" height="24" rx="2" fill="#ccc"/><rect x="2" y="2" width="24" height="24" rx="2" fill="white" stroke="#888" stroke-width="1.5"/><rect x="6" y="6" width="14" height="14" fill="#ddd"/></svg>
+                <span class="t" data-ar="ظل" data-tr="Gölge">ظل</span>
+              </button>
+              <button class="frame-btn" data-frame="label">
+                <svg width="28" height="28" viewBox="0 0 28 28"><rect x="1" y="1" width="26" height="22" rx="2" stroke="#888" stroke-width="1.5" fill="white"/><rect x="1" y="23" width="26" height="4" rx="1" fill="#888"/><rect x="5" y="5" width="18" height="14" fill="#ddd"/></svg>
+                <span class="t" data-ar="ملصق" data-tr="Etiket">ملصق</span>
+              </button>
+            </div>
+            <div id="qr-label-wrap" style="display:none;margin-top:10px;">
+              <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;" class="t" data-ar="نص الملصق" data-tr="Etiket metni">نص الملصق</div>
+              <input type="text" class="qr-input" id="qr-label-text" value="Almahayri" maxlength="30">
+            </div>
+          </div>
+          <div class="qr-section">
+            <div class="qr-label t" data-ar="الإعدادات" data-tr="Ayarlar">الإعدادات</div>
+            <div class="slider-row">
+              <label class="t" data-ar="الحجم" data-tr="Boyut">الحجم</label>
+              <input type="range" id="qr-size" min="120" max="400" value="280">
+              <span class="slider-val" id="qr-size-val">280px</span>
+            </div>
+            <div class="slider-row">
+              <label class="t" data-ar="الهامش" data-tr="Kenar boşluğu">الهامش</label>
+              <input type="range" id="qr-margin" min="0" max="4" value="1">
+              <span class="slider-val" id="qr-margin-val">1</span>
+            </div>
+          </div>
+          <div class="qr-section">
+            <button class="gen-btn" onclick="generateQR()">
+              ↳ <span class="t" data-ar="إنشاء QR كود" data-tr="QR Kod Oluştur">إنشاء QR كود</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="qr-preview-panel">
+          <div id="qr-empty-state" class="qr-empty">
+            <div class="qr-empty-icon">▦</div>
+            <p class="t" data-ar="اضبط الإعدادات وأنشئ" data-tr="Ayarla ve oluştur">اضبط الإعدادات وأنشئ</p>
+          </div>
+          <div id="qr-output" style="display:none;flex-direction:column;align-items:center;">
+            <div id="qr-hidden" style="position:absolute;left:-9999px;top:-9999px;"></div>
+            <canvas id="qr-canvas" style="max-width:100%;border-radius:8px;"></canvas>
+            <div style="margin-top:10px;font-size:11px;color:var(--text3);" id="qr-info"></div>
+            <div class="dl-row">
+              <button class="dl-btn" onclick="qrDownloadPNG()">🖼 PNG</button>
+              <button class="dl-btn" onclick="qrDownloadSVG()">✦ SVG</button>
+              <button class="dl-btn" onclick="qrDownloadPDF()">📄 PDF</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ================================
+// PASSWORD
+// ================================
+const PASS = "almahayri2024"; // 🔑 buradan şifreyi değiştir
+
+function checkLogin() {
+  const val = document.getElementById('pw-input').value;
+  if (val === PASS) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    sessionStorage.setItem('auth','1');
+    initApp();
+  } else {
+    document.getElementById('login-err').textContent = currentLang === 'ar' ? 'كلمة المرور خاطئة' : 'Yanlış şifre';
+  }
+}
+
+document.getElementById('pw-input').addEventListener('keydown', e => { if(e.key==='Enter') checkLogin(); });
+
+if(sessionStorage.getItem('auth') === '1') {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  window.addEventListener('firebase-ready', initApp, {once:true});
+}
+
+// ================================
+// LANG
+// ================================
+let currentLang = localStorage.getItem('lang') || 'ar';
+
+function applyLang() {
+  const isAr = currentLang === 'ar';
+  document.documentElement.lang = isAr ? 'ar' : 'tr';
+  document.documentElement.dir = 'rtl';
+  document.getElementById('lang-btn').textContent = isAr ? 'TR' : 'ع';
+
+  document.querySelectorAll('.t').forEach(el => {
+    const v = el.dataset[isAr ? 'ar' : 'tr'];
+    if(v) el.textContent = v;
+  });
+  document.querySelectorAll('.t-ph').forEach(el => {
+    const v = el.dataset[isAr ? 'arPh' : 'trPh'];
+    if(v) el.placeholder = v;
+  });
+  document.getElementById('login-sub-text').textContent = isAr ? 'أدخل كلمة المرور للدخول' : 'Giriş için şifreyi girin';
+  document.getElementById('notes-area').placeholder = isAr ? '...اكتب ملاحظاتك هنا' : 'Notlarınızı buraya yazın...';
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'ar' ? 'tr' : 'ar';
+  localStorage.setItem('lang', currentLang);
+  applyLang();
+}
+
+applyLang();
+
+// ================================
+// THEME
+// ================================
+if(localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme','dark');
+
+function toggleTheme() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if(dark) { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('theme','light'); }
+  else { document.documentElement.setAttribute('data-theme','dark'); localStorage.setItem('theme','dark'); }
+}
+
+// ================================
+// TABS
+// ================================
+function showTab(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ================================
+// FIREBASE INIT
+// ================================
+let db, fbRef, fbSet, fbGet, fbOnValue, fbUpdate, fbRemove, fbPush;
+
+function initApp() {
+  db = window.__db;
+  fbRef = window.__ref;
+  fbSet = window.__set;
+  fbGet = window.__get;
+  fbOnValue = window.__onValue;
+  fbUpdate = window.__update;
+  fbRemove = window.__remove;
+  fbPush = window.__push;
+
+  listenNotes();
+  listenLinks();
+  listenFiles();
+  listenStock();
+}
+
+window.addEventListener('firebase-ready', initApp, {once:true});
+
+// ================================
+// NOTES
+// ================================
+function listenNotes() {
+  fbOnValue(fbRef(db, 'notes'), snap => {
+    const data = snap.val();
+    if(data) {
+      document.getElementById('notes-area').value = data.content || '';
+      const d = new Date(data.updatedAt);
+      document.getElementById('notes-meta').textContent =
+        (currentLang==='ar' ? 'آخر تحديث: ' : 'Son düzenleme: ') +
+        d.toLocaleString(currentLang==='ar' ? 'ar' : 'tr-TR');
+    }
+  });
+}
+
+function saveNotes() {
+  const btn = document.getElementById('notes-save-btn');
+  btn.disabled = true;
+  fbSet(fbRef(db, 'notes'), {
+    content: document.getElementById('notes-area').value,
+    updatedAt: Date.now()
+  }).then(() => {
+    btn.disabled = false;
+    const t = document.getElementById('notes-toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  });
+}
+
+// ================================
+// LINKS
+// ================================
+function listenLinks() {
+  fbOnValue(fbRef(db, 'links'), snap => {
+    const data = snap.val();
+    renderLinks(data ? Object.entries(data) : []);
+  });
+}
+
+function renderLinks(entries) {
+  const list = document.getElementById('links-list');
+  if(!entries.length) {
+    list.innerHTML = `<div class="empty-state"><div class="es-icon">🔗</div><span class="t" data-ar="لا توجد روابط" data-tr="Henüz link yok">${currentLang==='ar'?'لا توجد روابط':'Henüz link yok'}</span></div>`;
+    return;
+  }
+  list.innerHTML = entries.map(([key, item]) => `
+    <div class="link-item">
+      <div class="link-icon">🔗</div>
+      <div class="link-info">
+        <div class="link-name">${esc(item.name)}</div>
+        <div class="link-url">${esc(item.url)}</div>
+      </div>
+      <div class="link-actions">
+        <a class="open-btn" href="${esc(item.url)}" target="_blank" rel="noopener">↗</a>
+        <button class="del-btn" onclick="deleteLink('${key}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addLink() {
+  const name = document.getElementById('link-name').value.trim();
+  const url = document.getElementById('link-url').value.trim();
+  if(!name || !url) return;
+  fbPush(fbRef(db,'links'), {name, url});
+  document.getElementById('link-name').value = '';
+  document.getElementById('link-url').value = '';
+}
+
+function deleteLink(key) {
+  fbRemove(fbRef(db, `links/${key}`));
+}
+
+// ================================
+// FILES
+// ================================
+function listenFiles() {
+  fbOnValue(fbRef(db, 'categories'), snap => {
+    const data = snap.val();
+    renderCategories(data ? Object.entries(data) : []);
+  });
+}
+
+function renderCategories(entries) {
+  const list = document.getElementById('categories-list');
+  if(!entries.length) {
+    list.innerHTML = `<div class="empty-state"><div class="es-icon">📁</div><span>${currentLang==='ar'?'لا توجد فئات':'Henüz kategori yok'}</span></div>`;
+    return;
+  }
+  list.innerHTML = entries.map(([catKey, cat]) => {
+    const files = cat.files ? Object.entries(cat.files) : [];
+    return `
+    <div class="category-card">
+      <div class="category-header">
+        <div class="cat-name">📁 ${esc(cat.name)}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="cat-count">${files.length} ${currentLang==='ar'?'ملف':'dosya'}</span>
+          <button class="del-btn" onclick="deleteCategory('${catKey}')" style="padding:3px 8px;font-size:11px;">✕</button>
+        </div>
+      </div>
+      <div class="category-body">
+        ${files.map(([fKey, f]) => `
+          <div class="file-item">
+            <div class="file-icon">${fileIcon(f.name)}</div>
+            <div class="file-info">
+              <div class="file-name">${esc(f.name)}</div>
+              <div class="file-size">${f.size || ''}</div>
+            </div>
+            <div class="file-actions">
+              <a class="view-btn" href="${f.url}" target="_blank" rel="noopener">↗</a>
+              <button class="del-btn" onclick="deleteFile('${catKey}','${fKey}')">✕</button>
+            </div>
+          </div>
+        `).join('')}
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="drive-name-${catKey}" placeholder="${currentLang==='ar'?'اسم الملف':'Dosya adı'}" style="flex:1;min-width:100px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface2);font-family:inherit;font-size:13px;color:var(--text);outline:none;">
+          <input type="url" id="drive-url-${catKey}" placeholder="https://drive.google.com/..." style="flex:2;min-width:140px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface2);font-family:inherit;font-size:13px;color:var(--text);outline:none;">
+          <button onclick="addDriveFile('${catKey}')" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
+            ${currentLang==='ar'?'+ إضافة':'+ Ekle'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addCategory() {
+  const name = document.getElementById('cat-name-input').value.trim();
+  if(!name) return;
+  fbPush(fbRef(db,'categories'), {name});
+  document.getElementById('cat-name-input').value = '';
+}
+
+function deleteCategory(key) {
+  if(!confirm(currentLang==='ar'?'هل تريد حذف هذه الفئة؟':'Bu kategoriyi silmek istiyor musunuz?')) return;
+  fbRemove(fbRef(db, `categories/${key}`));
+}
+
+function addDriveFile(catKey) {
+  const name = document.getElementById(`drive-name-${catKey}`).value.trim();
+  const url  = document.getElementById(`drive-url-${catKey}`).value.trim();
+  if(!name || !url) return;
+  fbPush(fbRef(db, `categories/${catKey}/files`), { name, url });
+  document.getElementById(`drive-name-${catKey}`).value = '';
+  document.getElementById(`drive-url-${catKey}`).value = '';
+}
+
+function deleteFile(catKey, fileKey) {
+  fbRemove(fbRef(db, `categories/${catKey}/files/${fileKey}`));
+}
+
+// ================================
+// STOCK
+// ================================
+function listenStock() {
+  fbOnValue(fbRef(db,'stock'), snap => {
+    const data = snap.val();
+    renderStock(data ? Object.entries(data) : []);
+  });
+}
+
+function renderStock(entries) {
+  const tbody = document.getElementById('stock-tbody');
+  const empty = document.getElementById('stock-empty');
+  if(!entries.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = entries.map(([key, p]) => `
+    <tr>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td>
+        <span class="stock-qty ${p.qty < 100 ? 'low' : 'ok'}">${p.qty}</span>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="qty-input" id="sold-${key}" placeholder="0" min="0">
+          <button class="apply-btn apply-sold" onclick="applySold('${key}','${p.qty}')">
+            ${currentLang==='ar'?'طرح':'↓'}
+          </button>
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="qty-input" id="add-${key}" placeholder="0" min="0">
+          <button class="apply-btn apply-add" onclick="applyAdd('${key}','${p.qty}')">
+            ${currentLang==='ar'?'إضافة':'↑'}
+          </button>
+        </div>
+      </td>
+      <td>
+        <button class="del-btn" onclick="deleteProduct('${key}')">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function addProduct() {
+  const name = document.getElementById('prod-name').value.trim();
+  const qty  = parseInt(document.getElementById('prod-qty').value) || 0;
+  if(!name) return;
+  fbPush(fbRef(db,'stock'), {name, qty});
+  document.getElementById('prod-name').value = '';
+  document.getElementById('prod-qty').value = '';
+}
+
+function applySold(key, currentQty) {
+  const val = parseInt(document.getElementById(`sold-${key}`).value) || 0;
+  const newQty = Math.max(0, parseInt(currentQty) - val);
+  fbUpdate(fbRef(db,`stock/${key}`), {qty: newQty});
+  document.getElementById(`sold-${key}`).value = '';
+}
+
+function applyAdd(key, currentQty) {
+  const val = parseInt(document.getElementById(`add-${key}`).value) || 0;
+  const newQty = parseInt(currentQty) + val;
+  fbUpdate(fbRef(db,`stock/${key}`), {qty: newQty});
+  document.getElementById(`add-${key}`).value = '';
+}
+
+function deleteProduct(key) {
+  fbRemove(fbRef(db, `stock/${key}`));
+}
+
+// ================================
+// QR STUDIO
+// ================================
+let qrFrame = 'none';
+let qrFg = '#1c1a16';
+let qrBg = '#ffffff';
+let qrDataURL = '';
+
+document.getElementById('qr-fg').addEventListener('input', function(){
+  qrFg = this.value;
+  document.getElementById('qr-fg-val').textContent = this.value;
+});
+document.getElementById('qr-bg').addEventListener('input', function(){
+  qrBg = this.value;
+  document.getElementById('qr-bg-val').textContent = this.value;
+});
+
+document.querySelectorAll('.pal-btn').forEach(btn => {
+  btn.addEventListener('click', function(){
+    const fg = this.dataset.fg, bg = this.dataset.bg;
+    qrFg = fg; qrBg = bg;
+    document.getElementById('qr-fg').value = fg;
+    document.getElementById('qr-bg').value = bg;
+    document.getElementById('qr-fg-val').textContent = fg;
+    document.getElementById('qr-bg-val').textContent = bg;
+  });
+});
+
+document.getElementById('qr-size').addEventListener('input', function(){
+  document.getElementById('qr-size-val').textContent = this.value + 'px';
+});
+document.getElementById('qr-margin').addEventListener('input', function(){
+  document.getElementById('qr-margin-val').textContent = this.value;
+});
+
+document.querySelectorAll('.frame-btn').forEach(btn => {
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    qrFrame = this.dataset.frame;
+    document.getElementById('qr-label-wrap').style.display = qrFrame === 'label' ? 'block' : 'none';
+  });
+});
+
+function generateQR() {
+  const text = document.getElementById('qr-url').value.trim();
+  if(!text) { alert(currentLang==='ar'?'أدخل URL أو نصاً':'URL veya metin girin'); return; }
+  const size = parseInt(document.getElementById('qr-size').value);
+  const margin = parseInt(document.getElementById('qr-margin').value);
+
+  const hidden = document.getElementById('qr-hidden');
+  hidden.innerHTML = '';
+
+  new QRCode(hidden, {
+    text, width: size, height: size,
+    colorDark: qrFg, colorLight: qrBg,
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  setTimeout(() => {
+    const src = hidden.querySelector('canvas');
+    if(!src) return;
+    drawQRFrame(src, size, margin);
+    document.getElementById('qr-empty-state').style.display = 'none';
+    document.getElementById('qr-output').style.display = 'flex';
+    document.getElementById('qr-info').textContent = text.length + ' chars · ' + size + '×' + size + 'px';
+  }, 200);
+}
+
+function drawQRFrame(srcCanvas, size, margin) {
+  const pad = margin * 10;
+  const labelText = document.getElementById('qr-label-text').value || 'Almahayri';
+  const labelH = qrFrame === 'label' ? 36 : 0;
+  const totalW = size + pad*2;
+  const totalH = size + pad*2 + labelH;
+  const canvas = document.getElementById('qr-canvas');
+  canvas.width = totalW; canvas.height = totalH;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,totalW,totalH);
+  ctx.fillStyle = qrBg;
+  ctx.fillRect(0,0,totalW,totalH);
+
+  if(qrFrame==='simple') { ctx.strokeStyle=qrFg; ctx.lineWidth=3; ctx.strokeRect(3,3,totalW-6,totalH-6); }
+  if(qrFrame==='rounded') { ctx.strokeStyle=qrFg; ctx.lineWidth=3; qrRoundRect(ctx,3,3,totalW-6,totalH-6,14); ctx.stroke(); }
+  if(qrFrame==='double') { ctx.strokeStyle=qrFg; ctx.lineWidth=2.5; ctx.strokeRect(3,3,totalW-6,totalH-6); ctx.lineWidth=1; ctx.strokeRect(7,7,totalW-14,totalH-14); }
+  if(qrFrame==='shadow') { ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(6,6,totalW,totalH); ctx.fillStyle=qrBg; ctx.fillRect(0,0,totalW-3,totalH-3); ctx.strokeStyle=qrFg; ctx.lineWidth=2; ctx.strokeRect(1.5,1.5,totalW-4.5,totalH-4.5); }
+  if(qrFrame==='label') { ctx.strokeStyle=qrFg; ctx.lineWidth=2.5; ctx.strokeRect(3,3,totalW-6,size+pad*2-6); ctx.fillStyle=qrFg; ctx.fillRect(0,size+pad*2,totalW,labelH); ctx.fillStyle=qrBg; ctx.font='bold 15px Georgia,serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(labelText,totalW/2,size+pad*2+labelH/2); }
+
+  ctx.drawImage(srcCanvas, pad, pad, size, size);
+  qrDataURL = canvas.toDataURL('image/png');
+}
+
+function qrRoundRect(ctx,x,y,w,h,r) {
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+function qrDownloadPNG() {
+  if(!qrDataURL) return;
+  const a = document.createElement('a'); a.download='almahayri-qr.png'; a.href=qrDataURL; a.click();
+}
+function qrDownloadSVG() {
+  const canvas = document.getElementById('qr-canvas');
+  const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><image href="${canvas.toDataURL()}" x="0" y="0" width="${canvas.width}" height="${canvas.height}"/></svg>`;
+  const a = document.createElement('a'); a.download='almahayri-qr.svg'; a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'})); a.click();
+}
+function qrDownloadPDF() {
+  if(!qrDataURL) return;
+  const {jsPDF} = window.jspdf;
+  const canvas = document.getElementById('qr-canvas');
+  const mmW = canvas.width*0.264583, mmH = canvas.height*0.264583;
+  const pdf = new jsPDF({orientation: mmW>mmH?'landscape':'portrait',unit:'mm',format:[mmW+20,mmH+20]});
+  pdf.addImage(qrDataURL,'PNG',10,10,mmW,mmH);
+  pdf.save('almahayri-qr.pdf');
+}
+
+// ================================
+// HELPERS
+// ================================
+function esc(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fileIcon(name) {
+  const ext = (name||'').split('.').pop().toLowerCase();
+  const map = {pdf:'📄',png:'🖼',jpg:'🖼',jpeg:'🖼',gif:'🖼',webp:'🖼',mp4:'🎬',mov:'🎬',zip:'🗜',rar:'🗜',xlsx:'📊',xls:'📊',doc:'📝',docx:'📝',ppt:'📊',pptx:'📊'};
+  return map[ext] || '📎';
+}
+
+function formatBytes(bytes) {
+  if(!bytes) return '';
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+</script>
+</body>
+</html>
