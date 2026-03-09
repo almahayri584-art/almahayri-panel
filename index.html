@@ -766,38 +766,29 @@ body {
     --muted: #8a7f6a;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
+  #sec-qr {
     background: var(--parchment);
     font-family: 'DM Mono', monospace;
     color: var(--ink);
-    min-height: 100vh;
+    border-radius: 12px;
+    overflow: hidden;
   }
 
-  /* Subtle grain texture */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 0;
-  }
+
 
   .app {
     position: relative;
     z-index: 1;
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 40px 24px;
+    padding: 16px;
   }
 
   /* Header */
   header {
     text-align: center;
-    margin-bottom: 52px;
-    padding-bottom: 36px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
     border-bottom: 1px solid var(--border);
   }
 
@@ -811,7 +802,7 @@ body {
 
   h1 {
     font-family: 'Playfair Display', serif;
-    font-size: clamp(32px, 5vw, 56px);
+    font-size: clamp(22px, 5vw, 36px);
     font-weight: 900;
     color: var(--ink);
     line-height: 1;
@@ -868,7 +859,7 @@ body {
   }
 
   /* Inputs */
-  input[type="text"], textarea {
+  #sec-qr input[type="text"], #sec-qr textarea {
     width: 100%;
     background: var(--parchment);
     border: 1px solid var(--border);
